@@ -1,6 +1,7 @@
-jgmenu (0.7.3-1) UNRELEASED; urgency=medium
+jgmenu (0.7.3-1+bl8) jessie-backports; urgency=medium
 
+  [ Johan Malm ]
   * New upstream release
   * Move debian/ directory to project root
 
- -- Johan Malm <jgm323@gmail.com>  Sat, 28 Oct 2017 21:52:10 +0100
+ -- Jens John <dev@2ion.de>  Tue, 31 Oct 2017 20:42:07 +0100
