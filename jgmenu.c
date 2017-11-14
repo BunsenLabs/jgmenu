@@ -1059,7 +1059,7 @@ static void insert_tag_item(void)
 	item->cmd = argv_buf.argv[1];
 	item->iconname = argv_buf.argv[2];
 	item->icon = NULL;
-	item->tag = NULL;
+	item->tag = item->cmd + 5;
 	item->selectable = 1;
 	item->area.h = config.item_height;
 	list_add_tail(&item->master, &menu.master);
@@ -1077,9 +1077,14 @@ void read_csv_file(FILE *fp)
 		die("no csv-file");
 	argv_set_delim(&argv_buf, ',');
 	for (i = 0; fgets(buf, sizeof(buf), fp); i++) {
+		buf[BUFSIZ - 1] = '\0';
+		if (strlen(buf) == BUFSIZ - 1)
+			die("item %d is too long", i);
 		p = strchr(buf, '\n');
 		if (p)
 			*p = '\0';
+		else
+			die("item %d was not correctly terminated with a '\\n'", i);
 		if ((buf[0] == '#') ||
 		    (buf[0] == '\n') ||
 		    (buf[0] == '\0')) {
@@ -1107,16 +1112,11 @@ void read_csv_file(FILE *fp)
 				insert_tag_item();
 			first_item = 0;
 		}
-		list_add_tail(&item->master, &menu.master);
-	}
-
-	if (!item || i <= 0)
-		die("input file contains no menu items");
-
-	/* Init items */
-	list_for_each_entry(item, &menu.master, master) {
 		item->icon = NULL;
-		item->tag = NULL;
+		if (!strncmp("^tag(", item->cmd, 5))
+			item->tag = parse_caret_action(item->cmd, "^tag(");
+		else
+			item->tag = NULL;
 		item->selectable = 1;
 		item->area.h = config.item_height;
 		if (!strncmp(item->name, "^sep(", 5)) {
@@ -1124,14 +1124,11 @@ void read_csv_file(FILE *fp)
 			if (item->name[5] == '\0')
 				item->area.h = config.sep_height;
 		}
+		list_add_tail(&item->master, &menu.master);
 	}
 
-	/* Populate tag field */
-	list_for_each_entry(item, &menu.master, master) {
-		if (strncmp("^tag(", item->cmd, 5))
-			continue;
-		item->tag = parse_caret_action(item->cmd, "^tag(");
-	}
+	if (!item || i <= 0)
+		die("input file contains no menu items");
 }
 
 void rm_back_items(void)
@@ -1139,8 +1136,8 @@ void rm_back_items(void)
 	struct item *i, *tmp;
 
 	list_for_each_entry_safe(i, tmp, &menu.master, master)
-		if (!strncmp(i->cmd, "^back()", 7)) {
-			xfree(i->name);
+		if (!strncmp(i->cmd, "^back(", 6)) {
+			xfree(i->buf);
 			list_del(&i->master);
 			xfree(i);
 		}
@@ -1180,7 +1177,7 @@ void pipemenu_del(struct node *node)
 	pm_pop();
 	i = node->item;
 	list_for_each_entry_safe_from(i, i_tmp, &menu.master, master) {
-		xfree(i->name);
+		xfree(i->buf);
 		list_del(&i->master);
 		xfree(i);
 	}
@@ -1482,8 +1479,10 @@ void mouse_event(XEvent *e)
 
 	/* right-click */
 	if (ev->button == Button3) {
-		checkout_parent();
-		update(1);
+		if (!config.multi_window) {
+			checkout_parent();
+			update(1);
+		}
 	}
 
 	/* scroll up */
