@@ -1,6 +1,5 @@
-jgmenu (0.7.3-1+bl9) stretch-backports; urgency=medium
+jgmenu (0.7.4-1+bl9) stretch-backports; urgency=medium
 
   * New upstream release
-  * Move debian/ directory to project root
 
- -- Johan Malm <jgm323@gmail.com>  Sat, 28 Oct 2017 21:52:10 +0100
+ -- Johan Malm <jgm323@gmail.com>  Mon, 13 Nov 2017 17:36:22 +0100
