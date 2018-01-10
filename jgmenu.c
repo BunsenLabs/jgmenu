@@ -98,7 +98,9 @@ struct menu {
 struct menu menu;
 
 static const char jgmenu_usage[] =
-"Usage: jgmenu [OPTIONS]\n"
+"Usage: jgmenu [command] [options]\n\n"
+"Commands include init\n"
+"Options:\n"
 "    --version             show version\n"
 "    --no-spawn            redirect command to stdout instead of executing\n"
 "    --checkout=<tag>      checkout submenu <tag> on startup\n"
@@ -646,7 +648,8 @@ void set_submenu_width(void)
 		goto set_width;
 	/* grow from right hand edge if too near it */
 	if (config.menu_halign == LEFT && reqw > maxarea.x) {
-		geo_set_menu_margin_x(geo_get_screen_width() - reqw);
+		geo_set_menu_margin_x(geo_get_screen_x0() + geo_get_screen_width() -
+				      reqw);
 		mw = reqw;
 	}
 
@@ -805,8 +808,8 @@ void launch_menu_at_pointer(void)
 
 	XQueryPointer(ui->dpy, DefaultRootWindow(ui->dpy), &dw, &dw, &di, &di,
 		      &pos.x, &pos.y, &du);
-
-	if (pos.x < geo_get_screen_width() - geo_get_menu_width()) {
+	if (pos.x < geo_get_screen_width() + geo_get_screen_x0() -
+	    geo_get_menu_width()) {
 		geo_set_menu_halign(LEFT);
 		geo_set_menu_margin_x(pos.x);
 	} else {
@@ -814,7 +817,8 @@ void launch_menu_at_pointer(void)
 		geo_set_menu_margin_x(geo_get_screen_width() - pos.x);
 	}
 
-	if (pos.y < geo_get_screen_height() - geo_get_menu_height()) {
+	if (pos.y < geo_get_screen_height() + geo_get_screen_y0() -
+	    geo_get_menu_height()) {
 		geo_set_menu_valign(TOP);
 		geo_set_menu_margin_y(pos.y);
 	} else if (geo_get_menu_height() < pos.y) {
@@ -857,6 +861,13 @@ void tint2_align(void)
 		return;
 	}
 	if (t2conf_is_horizontal_panel()) {
+		if (bx1 >= geo_get_screen_x0() + geo_get_screen_width() ||
+		    bx1 < geo_get_screen_x0()) {
+			geo_set_use_tint2_vars(0);
+			info("pointer outside tint2 range - no alignment");
+			return;
+		}
+		geo_set_use_tint2_vars(1);
 		info("aligning to tint2 horizontal panel env vars");
 		if (bx1 < px2 - geo_get_menu_width()) {
 			geo_set_menu_margin_x(bx1);
@@ -870,6 +881,13 @@ void tint2_align(void)
 		else
 			geo_set_menu_margin_y(py2);
 	} else {
+		if (by1 >= geo_get_screen_y0() + geo_get_screen_height() ||
+		    by1 < geo_get_screen_y0()) {
+			geo_set_use_tint2_vars(0);
+			info("pointer outside tint2 range - no alignment");
+			return;
+		}
+		geo_set_use_tint2_vars(1);
 		info("aligning to tint2 vertical panel env vars\n");
 		if (by1 < py2 - geo_get_menu_height()) {
 			geo_set_menu_margin_y(by1);
@@ -2099,11 +2117,10 @@ int main(int argc, char *argv[])
 			 !strncmp(argv[i], "-h", 2))
 			usage();
 	}
+	args_exec_commands(argc, argv);
 	if (!arg_vsimple)
 		config_read_jgmenurc(arg_config_file);
-
 	args_parse(argc, argv);
-
 	if (args_simple() || arg_vsimple)
 		set_simple_mode();
 	if (arg_vsimple)
@@ -2139,6 +2156,9 @@ int main(int argc, char *argv[])
 		fp = fopen(args_csv_file(), "r");
 	else if (args_csv_cmd())
 		fp = popen(args_csv_cmd(), "r");
+	else if (config.csv_cmd && config.csv_cmd[0] != '\0' &&
+		 !args_simple() && !arg_vsimple)
+		fp = popen(config.csv_cmd, "r");
 	if (!fp)
 		fp = stdin;
 	read_csv_file(fp);

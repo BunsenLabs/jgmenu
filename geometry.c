@@ -4,6 +4,7 @@
 
 #include "geometry.h"
 #include "util.h"
+#include "config.h"
 
 struct win {
 	int menu_x0;			/*  g */
@@ -37,6 +38,7 @@ static int screen_width;
 static int screen_height;		/*  g */
 static int screen_x0;
 static int screen_y0;
+static int use_tint2_vars;		/* s  */
 
 static void update_root(void)
 {
@@ -45,12 +47,16 @@ static void update_root(void)
 	else if (win[cur].menu_halign == RIGHT)
 		win[cur].menu_x0 = screen_width - win[cur].menu_width -
 				   menu_margin_x;
+	if (!config.at_pointer && !use_tint2_vars)
+		win[cur].menu_x0 += screen_x0;
 
 	if (win[cur].menu_valign == BOTTOM)
-		win[cur].menu_y0 = screen_y0 + screen_height -
-				   win[cur].menu_height - menu_margin_y;
+		win[cur].menu_y0 = screen_height - win[cur].menu_height -
+				   menu_margin_y;
 	else if (win[cur].menu_valign == TOP)
-		win[cur].menu_y0 = screen_y0 + menu_margin_y;
+		win[cur].menu_y0 = menu_margin_y;
+	if (!config.at_pointer && !use_tint2_vars)
+		win[cur].menu_y0 += screen_y0;
 }
 
 static void left_align(void)
@@ -87,7 +93,7 @@ static void update_sub_window(void)
 {
 	BUG_ON(!cur);
 	if (win[cur].menu_valign == TOP) {
-		int max_y0 = screen_height - win[cur].menu_height;
+		int max_y0 = screen_y0 + screen_height - win[cur].menu_height;
 
 		win[cur].menu_y0 = win[cur - 1].menu_y0 +
 				   win[cur - 1].parent_item.y -
@@ -150,7 +156,7 @@ void geo_init(void)
 	item_margin_y = 4;
 
 	ui_get_screen_res(&screen_x0, &screen_y0, &screen_width,
-			  &screen_height);
+			  &screen_height, config.monitor);
 
 	geo_update();
 }
@@ -183,12 +189,13 @@ struct point geo_get_max_itemarea_that_fits(void)
 {
 	struct point p;
 
-	p.x = !cur ? screen_width - menu_margin_x -
+	p.x = !cur ? screen_x0 + screen_width - menu_margin_x -
 	      menu_padding_left - menu_padding_right :
-	      screen_width - menu_margin_x - sub_padding_left - sub_padding_right;
-	p.y = !cur ? screen_height - menu_margin_y -
+	      screen_x0 + screen_width - menu_margin_x - sub_padding_left -
+	      sub_padding_right;
+	p.y = !cur ? screen_y0 + screen_height - menu_margin_y -
 	      menu_padding_top - menu_padding_bottom :
-	      screen_height - sub_padding_top - sub_padding_bottom;
+	      screen_y0 + screen_height - sub_padding_top - sub_padding_bottom;
 	return p;
 }
 
@@ -196,8 +203,8 @@ struct point geo_get_max_menuarea_that_fits(void)
 {
 	struct point p;
 
-	p.x = screen_width - menu_margin_x;
-	p.y = screen_height - menu_margin_y;
+	p.x = screen_x0 + screen_width - menu_margin_x;
+	p.y = screen_y0 + screen_height - menu_margin_y;
 	return p;
 }
 
@@ -346,6 +353,11 @@ void geo_set_menu_padding_left(int padding)
 	menu_padding_left = padding;
 }
 
+void geo_set_use_tint2_vars(int use)
+{
+	use_tint2_vars = use;
+}
+
 /*********************************************************************/
 
 int geo_get_menu_x0(void)
@@ -384,6 +396,16 @@ int geo_get_menu_width_from_itemarea_width(int width)
 int geo_get_item_height(void)
 {
 	return item_height;
+}
+
+int geo_get_screen_x0(void)
+{
+	return screen_x0;
+}
+
+int geo_get_screen_y0(void)
+{
+	return screen_y0;
 }
 
 int geo_get_screen_height(void)

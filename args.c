@@ -12,6 +12,15 @@ static char *csv_cmd;
 static int simple;
 static int die_when_loaded;
 
+void args_exec_commands(int argc, char **argv)
+{
+	if (argc < 2)
+		return;
+	if (!strcmp(argv[1], "init"))
+		if (execvp("jgmenu_run", argv) < 0)
+			die("cannot exec jgmenu_run");
+}
+
 void args_parse(int argc, char **argv)
 {
 	int i;
@@ -64,4 +73,3 @@ int args_die_when_loaded(void)
 {
 	return die_when_loaded;
 }
-

@@ -19,12 +19,13 @@ void config_set_defaults(void)
 	config.spawn		   = 1;	/* not in jgmenurc */
 	config.stay_alive	   = 1;
 	config.hide_on_startup	   = 0;
-	/* jgmenurc has a csv_cmd variable here */
+	config.csv_cmd		   = xstrdup("pmenu");
 	config.tint2_look	   = 1;
 	config.at_pointer	   = 0;
 	config.multi_window	   = 1;
 	config.terminal_exec	   = xstrdup("x-terminal-emulator");
 	config.terminal_args	   = xstrdup("-e");
+	config.monitor		   = 0;
 
 	config.menu_margin_x	   = 0;
 	config.menu_margin_y	   = 31;
@@ -77,6 +78,7 @@ void config_set_defaults(void)
 
 void config_cleanup(void)
 {
+	xfree(config.csv_cmd);
 	xfree(config.terminal_exec);
 	xfree(config.terminal_args);
 	xfree(config.font);
@@ -98,6 +100,9 @@ static void process_line(char *line)
 		xatoi(&config.stay_alive, value, XATOI_NONNEG, "config.stay_alive");
 	} else if (!strcmp(option, "hide_on_startup")) {
 		xatoi(&config.hide_on_startup, value, XATOI_NONNEG, "config.hide_on_startup");
+	} else if (!strcmp(option, "csv_cmd")) {
+		xfree(config.csv_cmd);
+		config.csv_cmd = xstrdup(value);
 	} else if (!strcmp(option, "tint2_look")) {
 		xatoi(&config.tint2_look, value, XATOI_NONNEG, "config.tint2_look");
 	} else if (!strcmp(option, "at_pointer")) {
@@ -110,6 +115,8 @@ static void process_line(char *line)
 	} else if (!strcmp(option, "terminal_args")) {
 		xfree(config.terminal_args);
 		config.terminal_args = xstrdup(value);
+	} else if (!strcmp(option, "monitor")) {
+		xatoi(&config.monitor, value, XATOI_NONNEG, "config.monitor");
 
 	} else if (!strcmp(option, "menu_margin_x")) {
 		xatoi(&config.menu_margin_x, value, XATOI_NONNEG, "config.margin_x");
@@ -309,4 +316,19 @@ void config_post_process(void)
 		config.sub_padding_bottom  = config.menu_padding_bottom;
 	if (config.sub_padding_left < 0)
 		config.sub_padding_left = config.menu_padding_left;
+
+	/* Resolve csv_cmd keywords */
+	if (!strcmp(config.csv_cmd, "pmenu")) {
+		xfree(config.csv_cmd);
+		config.csv_cmd = xstrdup("jgmenu_run pmenu");
+	} else if (!strcmp(config.csv_cmd, "xdg")) {
+		xfree(config.csv_cmd);
+		config.csv_cmd = xstrdup("jgmenu_run xdg");
+	} else if (!strcmp(config.csv_cmd, "lx")) {
+		xfree(config.csv_cmd);
+		config.csv_cmd = xstrdup("jgmenu_run lx");
+	} else if (!strcmp(config.csv_cmd, "ob")) {
+		xfree(config.csv_cmd);
+		config.csv_cmd = xstrdup("jgmenu_run ob");
+	}
 }

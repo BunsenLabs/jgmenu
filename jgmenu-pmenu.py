@@ -216,17 +216,22 @@ def internationalized(entry):
 # A special key "_path" stores the path of the file
 def read_desktop_entry(path):
   entry = {}
-  with open(path, "r", encoding="utf-8") as f:
-    lines = f.read().split("\n")
-    inside = False
-    for line in lines:
-      if line.startswith("["):
-        inside = line == "[Desktop Entry]"
-        continue
-      if inside:
-        if "=" in line:
-          k, v = line.split("=", 1)
-          entry[k] = v
+  try:
+    with open(path, "r", encoding="utf-8") as f:
+      lines = f.read().split("\n")
+      inside = False
+      for line in lines:
+        if line.startswith("["):
+          inside = line == "[Desktop Entry]"
+          continue
+        if inside:
+          if "=" in line:
+            k, v = line.split("=", 1)
+            entry[k] = v
+  except UnicodeDecodeError:
+    print("warn: ignoring '{}' as it is unicode (utf-8 needed)".format(path), file=sys.stderr)
+  except:
+    print("warn: error reading '{}'".format(path), file=sys.stderr)
   entry["_path"] = path
   return internationalized(entry)
 
@@ -363,7 +368,10 @@ def load_applications():
               else:
                 options = [c]
             else:
-              options = suggest_categories(entry["_pmenu_raw_Name"])
+              try:
+                options = suggest_categories(entry["_pmenu_raw_Name"])
+              except:
+                print("warn: no 'Name' key in file '{}'".format(entry["_path"]), file=sys.stderr)
             for o in options:
               if o in categories:
                 if o not in menu:
@@ -420,7 +428,7 @@ def setup_gettext():
 
 def main():
   global strings
-  parser = argparse.ArgumentParser(prog="jgmenu_run parse-pmenu")
+  parser = argparse.ArgumentParser(prog="jgmenu_run pmenu")
   parser.add_argument("--append-file", help="Path to menu file to append to the root menu", metavar="FILE")
   parser.add_argument("--prepend-file", help="Path to menu file to prepend to the root menu", metavar="FILE")
   parser.add_argument("--locale", help="Use a custom locale (e.g. 'en_US.UTF-8'; available locales can be shown " +

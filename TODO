@@ -1,8 +1,33 @@
 TODO
 ====
 
+Key changes before v1.0
+-----------------------
+
+	Remove 'single window mode' and replace with ^root() and ^return()
+	(consider how to set new root using a pipe)
+	This will make code simpler and will reduce memory usage as surfaces
+	can be kept smaller.
+
+	Add widgets including icon, rect and text
+
+	Add 4th field - comment (e.g. from generic name)
+
+	Add 5th field - meta (e.g. with categories to enable filter buttons)
+	Consider adding a ^filter()
+
 Cleanliness
 -----------
+
+	jgmenu - warn if strange command line argument is given
+
+	Refactor icon.c
+		- merge struct icon and icon_path
+		- is xdgdirs inited twice?
+		- split icon.c into image.c and icon.c
+		- rename functions (e.g. icon_set_name() --> icon_add())
+
+	mv isprog.c jgmenu-path.c (or similar)
 
 	checkout_parent(): consider the case when current window has child(ren)
 
@@ -37,18 +62,9 @@ Cleanliness
 
 	Refactor around read_csv_file and creating items
 
-	'\0' terminate read_csv_file if no '\n'  present
-
 	Remove spawn from config (make it args_ instead).
 
 	Draw diagrams of variables
-
-	Add csv_cmd to config.c
-	  - If csv_cmd unset/empty, read from 'stdin' (csv_cmd=...parse-pmenu by
-	    default)
-	  - Set csv_cmd=NULL when --simple or --vsimple invoked
-
-	Re-factor jgmenu_run lx/pmenu/xdg/csv, etc. by using --csv-*
 
 	Replace strdups+free with x-alternatives
 		replace various warn() with BUG_ON
@@ -56,8 +72,6 @@ Cleanliness
 	Set by argv_buf delim by default to make it 'safer'
 
 	Add explaination on JGMENU_EXEC_PATH
-
-	Remove XINERAMA ifdefs
 
 	Rename filter list (as it clashes with filter_) (maybe 'disp'?)
 
@@ -67,19 +81,32 @@ Cleanliness
 
 New features
 ------------
+
+	Add jgmenu-lx generic name and add LX=1 to Makefile
+
+	Highlight correct parent item when submenu open
+
+	Add jgmenu-xdg.c localisation
+
+	xdg: read xfce menu
+
 	jgmenu-init.sh:
 	  - put backup files in backup/ directory
 	  - add --clean to remove all config files
+	  - jgmenu init --append,--prepend, --jgmenurc
+	    Let jgmenu init call all three to create a simple basic setup
+	    Add "init --purge" to remove all three.
+	  - Add an experimental "init --theme=neon"
 
-	Add watch.c
+	Add watch.c to check changes to .desktop files, tint2, xsettings, jgmenurc,
+	etc. on wake-up
 		- Check tint2rc 'modified time' and re-read on change
 		- Consider the same for jgmenurc and tint2-sessionfile (bl)
 
 	Add support for "fixed-position" items such as icons/images and
 	shapes (incl search box)
 
-	On wake-up, check changes to .desktop files, tint2, xsettings, jgmenurc,
-	etc.
+	Explore pango markup
 
 	Add menu_height config option
 
@@ -89,11 +116,7 @@ New features
 
 	Add scroll_bar
 
-	Add man-page for jgmenu_run ob
+	Support for adding favourites in real-time (e.g. keyboard shortcut for
+	locking menu-item onto the root menu - or similar)
 
-AFTER v1.0
-----------
-Support for adding favourites in real-time (e.g. keyboard shortcut for
-locking menu-item onto the root menu - or similar)
-
-Consider "hover" features and "inline expansion" of menus
+	Consider "hover" features and "inline expansion" of menus

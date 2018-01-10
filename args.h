@@ -1,6 +1,7 @@
 #ifndef ARGS_H
 #define ARGS_H
 
+extern void args_exec_commands(int argc, char **argv);
 extern void args_parse(int argc, char **argv);
 extern char *args_checkout(void);
 extern char *args_csv_file(void);

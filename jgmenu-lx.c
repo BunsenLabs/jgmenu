@@ -9,6 +9,7 @@
 #include "util.h"
 #include "list.h"
 #include "back.h"
+#include "xdgdirs.h"
 
 struct menu {
 	struct sbuf buf;
@@ -19,12 +20,25 @@ struct menu {
 static struct list_head menu;
 static struct menu *cur;
 
+static void append(void)
+{
+	static int done;
+
+	if (done)
+		return;
+	cat("~/.config/jgmenu/append.csv");
+	done = 1;
+}
+
 static void print_menu(void)
 {
 	struct menu *m;
 
-	list_for_each_entry(m, &menu, list)
+	cat("~/.config/jgmenu/prepend.csv");
+	list_for_each_entry(m, &menu, list) {
 		printf("%s", m->buf.buf);
+		append();
+	}
 }
 
 static struct menu *menu_add(struct menu *parent)
@@ -98,6 +112,27 @@ static void traverse(MenuCacheDir *dir)
 	}
 }
 
+static void set_if_unset_xdg_menu_prefix(void)
+{
+	struct sbuf f;
+	char *p, *q;
+
+	if (getenv("XDG_MENU_PREFIX"))
+		return;
+	sbuf_init(&f);
+	xdgdirs_find_menu_file(&f);
+	if (!f.len)
+		die("cannot find a menu file");
+	p = strrchr(f.buf, '/');
+	BUG_ON(!p);
+	p++;
+	q = strchr(p, '-');
+	BUG_ON(!q);
+	q++;
+	*q = '\0';
+	setenv("XDG_MENU_PREFIX", p, 1);
+}
+
 int main(int argc, char **argv)
 {
 	MenuCache *cache;
@@ -107,7 +142,7 @@ int main(int argc, char **argv)
 	cur = menu_add(NULL);
 	setlocale(LC_ALL, "");
 
-	/* $XDG_MENU_PREFIX needs to be set */
+	set_if_unset_xdg_menu_prefix();
 	cache = menu_cache_lookup_sync("applications.menu");
 	if (!cache)
 		die("cannot connect to menu-cache");

@@ -6,36 +6,26 @@
  * http://specifications.freedesktop.org/basedir-spec...
  *
  * The list will contain the directories listed below (in given order).
- * If the $XDG* variables are set, the remainder will not be appended to
- * the list.
- *
- * $XDG_DATA_HOME
- * $HOME/.local/share
- * $XDG_DATA_DIRS
- * /usr/local/share
- * /usr/share
- * /opt/share
- *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "xdgdirs.h"
-#include "sbuf.h"
 #include "list.h"
 #include "util.h"
+#include "argv-buf.h"
 
 static char *xdg_base_dirs[] = {
 	"$XDG_DATA_HOME", "$HOME/.local/share", "$XDG_DATA_DIRS",
-	"/usr/share", "/usr/local/share", "/opt/share"
+	"/usr/share", "/usr/local/share", "/opt/share", NULL
 };
 
 static char *xdg_config_dirs[] = {
-	"$XDG_CONFIG_HOME", "$HOME/.config", "$XDG_CONFIG_DIRS", "/etc/xdg"
+	"$XDG_CONFIG_HOME", "$HOME/.config", "$XDG_CONFIG_DIRS", "/etc/xdg",
+	NULL
 };
-
-#define COUNT_OF(x) (sizeof(x) / sizeof(x)[0])
 
 static void expand_env_vars(struct sbuf *s)
 {
@@ -58,32 +48,71 @@ cleanup:
 	xfree(env_name.buf);
 }
 
-void xdgdirs_get_basedirs(struct list_head *dir_list)
+static void get_dirs(struct list_head *dir_list, char **dirs)
 {
 	size_t i;
+	int j;
 	struct sbuf tmp;
+	struct argv_buf argv_buf;
 
 	sbuf_init(&tmp);
-	for (i = 0; i < COUNT_OF(xdg_base_dirs); i++) {
-		sbuf_cpy(&tmp, xdg_base_dirs[i]);
+	argv_set_delim(&argv_buf, ':');
+	for (i = 0; dirs[i]; i++) {
+		sbuf_cpy(&tmp, dirs[i]);
 		if (!strncmp(tmp.buf, "$", 1))
 			expand_env_vars(&tmp);
-		if (tmp.len)
-			sbuf_list_append(dir_list, tmp.buf);
+		if (!tmp.len)
+			continue;
+		argv_init(&argv_buf);
+		argv_strdup(&argv_buf, tmp.buf);
+		argv_parse(&argv_buf);
+		for (j = 0; j < argv_buf.argc; j++)
+			sbuf_list_append(dir_list, argv_buf.argv[j]);
+		xfree(argv_buf.buf);
 	}
+}
+
+void xdgdirs_get_basedirs(struct list_head *dir_list)
+{
+	get_dirs(dir_list, xdg_base_dirs);
 }
 
 void xdgdirs_get_configdirs(struct list_head *dir_list)
 {
-	size_t i;
-	struct sbuf tmp;
+	get_dirs(dir_list, xdg_config_dirs);
+}
 
-	sbuf_init(&tmp);
-	for (i = 0; i < COUNT_OF(xdg_config_dirs); i++) {
-		sbuf_cpy(&tmp, xdg_config_dirs[i]);
-		if (!strncmp(tmp.buf, "$", 1))
-			expand_env_vars(&tmp);
-		if (tmp.len)
-			sbuf_list_append(dir_list, tmp.buf);
+void xdgdirs_find_menu_file(struct sbuf *filename)
+{
+	LIST_HEAD(config_dirs);
+	struct sbuf *tmp;
+	struct stat sb;
+	int i;
+	static const char * const prefix[] = { "gnome-", "lxde-", "lxqt-", "kde-",
+					       NULL };
+
+	xdgdirs_get_configdirs(&config_dirs);
+	sbuf_init(filename);
+	list_for_each_entry(tmp, &config_dirs, list) {
+		if (getenv("XDG_MENU_PREFIX")) {
+			sbuf_cpy(filename, tmp->buf);
+			sbuf_addstr(filename, "/menus/");
+			sbuf_addstr(filename, getenv("XDG_MENU_PREFIX"));
+			sbuf_addstr(filename, "applications.menu");
+			if (!stat(filename->buf, &sb))
+				goto found;
+		} else {
+			for (i = 0; prefix[i]; i++) {
+				sbuf_cpy(filename, tmp->buf);
+				sbuf_addstr(filename, "/menus/");
+				sbuf_addstr(filename, prefix[i]);
+				sbuf_addstr(filename, "applications.menu");
+				if (!stat(filename->buf, &sb))
+					goto found;
+			}
+		}
 	}
+	sbuf_cpy(filename, "");
+found:
+	sbuf_list_free(&config_dirs);
 }

@@ -66,7 +66,6 @@ void geo_set_menu_margin_y(int y);
 void geo_set_menu_halign(enum alignment pos);
 void geo_set_menu_valign(enum alignment pos);
 void geo_set_item_height(int h);
-void geo_set_nr_visible_items(int nr);
 void geo_set_sub_spacing(int spacing);
 void geo_set_sub_padding_top(int padding);
 void geo_set_sub_padding_right(int padding);
@@ -78,6 +77,7 @@ void geo_set_menu_padding_top(int padding);
 void geo_set_menu_padding_right(int padding);
 void geo_set_menu_padding_bottom(int padding);
 void geo_set_menu_padding_left(int padding);
+void geo_set_use_tint2_vars(int use);
 
 int geo_get_menu_x0(void);
 int geo_get_menu_y0(void);
@@ -86,8 +86,9 @@ int geo_get_itemarea_height(void);
 int geo_get_menu_width(void);
 int geo_get_menu_width_from_itemarea_width(int w);
 int geo_get_item_height(void);
+int geo_get_screen_x0(void);
+int geo_get_screen_y0(void);
 int geo_get_screen_height(void);
 int geo_get_screen_width(void);
-int geo_get_nr_visible_items(void);
 
 #endif  /* GEOMETRY_H */
