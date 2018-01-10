@@ -1,6 +1,10 @@
-jgmenu (0.8-1) UNRELEASED; urgency=medium
+jgmenu (0.8-1) jessie-backports; urgency=medium
 
+  [ Johan Malm ]
   * New upstream release
+
+  [ Jens John ]
+  * Release for jessie-backports.
 
  -- Johan Malm <jgm323@gmail.com>  Mon, 8 Jan 2018 17:05:29 +0000
 
