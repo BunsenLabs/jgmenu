@@ -5,19 +5,30 @@ Install
 
 BunsenLabs Linux: [backports](http://eu.pkg.bunsenlabs.org/debian/pool/main/j/jgmenu/)  
 
+    apt-get install jgmenu
+
 Arch Linux: [AUR package](https://aur.archlinux.org/packages/jgmenu/)  
+
+ArchLabs Linux [github](https://github.com/ARCHLabs/archlabs_repo/tree/master/x86_64)  
+Installed by default  
+
+    pacman -S jgmenu
 
 Void Linux: [Official package](https://github.com/voidlinux/void-packages/blob/master/srcpkgs/jgmenu/template)  
 
-### Build and install from scratch
+    xbps-install -S jgmenu 
 
-On Debian based systems:
+NixOS: [package](https://github.com/NixOS/nixpkgs/tree/master/pkgs/applications/misc/jgmenu)  
+
+Slackware: [SlackBuilds](https://slackbuilds.org/repository/14.2/desktop/jgmenu/)  
+
+### Build and install from scratch
 
 ```bash
 mkdir ~/src && cd ~/src
 git clone https://github.com/johanmalm/jgmenu.git
 cd jgmenu
-./scripts/install-debian-dependencies.sh
+./scripts/install-debian-dependencies.sh  # or equivalent
 make
 sudo make install
 ```
@@ -75,12 +86,11 @@ Dependencies
 | lx      | glib, libmenu-cache                         |
 
 
-  - A *menu* package  is required for "`jgmenu_run pmenu`",
-    "`jgmenu_run xdg`" and "`jgmenu_run lx`"
+  - A *menu* package  is required for "pmenu", "xdg" and "lx".
     Examples of *menu* packages include: lxmenu-data, gnome-menus
     and libgarcon-common (xfce))
 
-  - python3 is required by "`jgmenu_run pmenu`"
+  - python3 is required by "pmenu"
 
   - A Composite Manager such as `compton` is required to enable transparency.
     Most Desktop Environments already have one installed.

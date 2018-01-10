@@ -1,5 +1,5 @@
 /*
- * jgmenu-parse-ob.c
+ * jgmenu-ob.c
  *
  * Parses openbox menu and outputs a jgmenu-flavoured CSV file
  */
@@ -13,9 +13,6 @@
 #include "util.h"
 #include "sbuf.h"
 #include "list.h"
-
-static const char jgmenu_parse_ob_usage[] =
-"Usage: jgmenu_run parse-ob\n";
 
 static char *root_menu;
 
@@ -39,12 +36,6 @@ static struct list_head tags;
 static struct tag *curtag;
 static struct item *curitem;
 
-static void usage(void)
-{
-	printf("%s", jgmenu_parse_ob_usage);
-	exit(0);
-}
-
 static void print_it(struct tag *tag)
 {
 	struct item *item;
@@ -57,7 +48,7 @@ static void print_it(struct tag *tag)
 	list_for_each_entry(item, &tag->items, list) {
 		if (item->pipe)
 			printf("%s,^pipe(f=/tmp/jgmenu-pipe; %s >$f; "
-			       "jgmenu_run parse-ob --tag='%s' $f; rm -f $f)\n",
+			       "jgmenu_run ob --tag='%s' $f; rm -f $f)\n",
 			       item->label, item->cmd, item->label);
 		else if (item->checkout)
 			printf("%s,^checkout(%s)\n", item->label, item->cmd);
@@ -279,7 +270,7 @@ static void xml_tree_walk(xmlNode *node)
 	xmlNode *n;
 	int ret;
 
-	for (n = node; n; n = n->next) {
+	for (n = node; n && n->name; n = n->next) {
 		if (!strcasecmp((char *)n->name, "menu")) {
 			ret = menu_start(n);
 			xml_tree_walk(n->children);
@@ -324,7 +315,6 @@ int main(int argc, char **argv)
 	int i;
 	struct sbuf default_file;
 	struct stat sb;
-	int exists;
 
 	LIBXML_TEST_VERSION
 
@@ -333,8 +323,6 @@ int main(int argc, char **argv)
 		if (argv[i][0] != '-') {
 			file_name = argv[i];
 			break;
-		} else if (!strncmp(argv[i], "--help", 6)) {
-			usage();
 		} else if (!strncmp(argv[i], "--tag=", 6)) {
 			root_menu = strdup(argv[i] + 6);
 		}
@@ -342,17 +330,14 @@ int main(int argc, char **argv)
 	}
 	if (!root_menu)
 		root_menu = strdup("root-menu");
-
 	sbuf_init(&default_file);
 	if (!file_name) {
-		sbuf_addstr(&default_file, getenv("HOME"));
+		sbuf_cpy(&default_file, getenv("HOME"));
 		sbuf_addstr(&default_file, "/.config/openbox/menu.xml");
 		file_name = strdup(default_file.buf);
 	}
-	exists = stat(file_name, &sb) == 0;
-	if (!exists)
+	if (stat(file_name, &sb))
 		die("file '%s' does not exist", file_name);
-
 	INIT_LIST_HEAD(&tags);
 	parse_xml(file_name);
 

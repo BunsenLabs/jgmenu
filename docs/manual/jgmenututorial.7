@@ -6,7 +6,7 @@
 .PD 0
 .P
 .PD
-% 15 Jul, 2017" "" "" "" ""
+% 17 December, 2017
 .SH NAME
 .PP
 The jgmenu tutorial
@@ -24,7 +24,7 @@ After installing jgmenu, you can get going quickly by running:
 .IP
 .nf
 \f[C]
-jgmenu_run
+jgmenu
 \f[]
 .fi
 .PP
@@ -41,13 +41,13 @@ We call this menu "pmenu" (explained
 .PD 0
 .P
 .PD
-below).
+in lesson 7).
 .IP \[bu] 2
-If you use tint2, jgmenu should have copied its appearance,
+If you use tint2, jgmenu should have imitated its appearance
 .PD 0
 .P
 .PD
-position and alignment.
+and aligned with its position.
 .IP \[bu] 2
 You have just started a long\-running application.
 If you click
@@ -67,7 +67,7 @@ It can be awoken (made visible) by executing
 .PD 0
 .P
 .PD
-\f[C]jgmenu_run\f[] again.
+\f[C]jgmenu_run\f[].
 .PP
 If you do not use tint2 or if you wish to override some of its
 .PD 0
@@ -77,7 +77,7 @@ settings, you can create a config file by running:
 .IP
 .nf
 \f[C]
-jgmenu_run\ init
+jgmenu\ init
 \f[]
 .fi
 .PP
@@ -86,7 +86,7 @@ Edit this config file (~/.config/jgmenu/jgmenurc) to suit your
 .P
 .PD
 system.
-Read JGMENU\-CONFIG(1) for further information.
+Read the man page JGMENU(1) for further information.
 .PP
 If you have a config file at ~/.config/jgmenu/jgmenurc and want to
 .PD 0
@@ -97,17 +97,38 @@ ignore it for the purposes of running one of the lessons, just use
 .P
 .PD
 the command line argument "\-\-config\-file=" without specifying a file.
+.SS Lesson 2
 .PP
-If you use tint2 and want a traditional "start menu", you can do one
+You can also start jgmenu with
+.IP
+.nf
+\f[C]
+jgmenu_run
+\f[]
+.fi
+.PP
+The advantage of this wrapper is that it will either awake jgmenu or
 .PD 0
 .P
 .PD
-of the following using tint2conf or by editing tint2rc directly:
+start a new instance depending on if it is already running or not.
+.PP
+This makes it suitable for using with panels and keyboard shortcuts.
+.PP
+For example, if you use tint2 and want a traditional "start menu",
+.PD 0
+.P
+.PD
+you can do one of the following using tint2conf or by editing tint2rc
+.PD 0
+.P
+.PD
+directly:
 .IP \[bu] 2
 Add jgmenu.desktop to your launcher
 .IP \[bu] 2
 Create a button setting \f[C]button_lclick_command\ =\ jgmenu_run\f[]
-.SS Lesson 2
+.SS Lesson 3
 .PP
 From this point onwards, it is assumed that you understand basic
 .PD 0
@@ -117,16 +138,16 @@ shell usage including re\-direction (e.g.
 <, >) and piping (e.g.
 |).
 .PP
-The syntax below is used to denote the creation of a text file from
+The syntax below (here\-document) is used to denote the creation of a
 .PD 0
 .P
 .PD
-whatever is between the EOFs.
-You can of course use your favourite
+text file from whatever is between the EOFs.
+You can of course use
 .PD 0
 .P
 .PD
-text editor instead.
+your favourite text editor instead.
 .IP
 .nf
 \f[C]
@@ -136,155 +157,6 @@ bar
 EOF
 \f[]
 .fi
-.PP
-freedesktop.org have developed a menu standard which is adhered to
-.PD 0
-.P
-.PD
-by the big Desktop Environments.
-In this tutorial we will refer to
-.PD 0
-.P
-.PD
-this type of menu as XDG.
-.PP
-There are at least two ways to run XDG(ish) menus:
-.IP \[bu] 2
-\f[C]jgmenu_run\ pmenu\f[]
-.PD 0
-.P
-.PD
-.IP \[bu] 2
-\f[C]jgmenu_run\ xdg\f[]
-.PP
-To understand the subtleties between these, you need a basic
-.PD 0
-.P
-.PD
-appreciataion of the XDG menu\-spec and desktop\-entry\-spec.
-See:
-.PD 0
-.P
-.PD
-http://standards.freedesktop.org/ for further information.
-.PP
-To keep things simple, when discussing XDG paths, only one location
-.PD 0
-.P
-.PD
-will be referred to rather than XDG variables and every possible
-.PD 0
-.P
-.PD
-location.
-So for example, if "/usr/share" is quoted, it may refer to
-.PD 0
-.P
-.PD
-"/usr/local/share", "$HOME/.local/share", etc on your system.
-.PP
-In brief, there are three types of files which define the Linux/BSD
-.PD 0
-.P
-.PD
-system menu:
-.IP \[bu] 2
-\&.menu (/etc/xdg/menus)
-.PD 0
-.P
-.PD
-These are XML files describing such things as the menu categories
-.PD 0
-.P
-.PD
-and directory structure.
-.IP \[bu] 2
-\&.directory (/usr/share/desktop\-directories)
-.PD 0
-.P
-.PD
-These describe the menu directories
-.IP \[bu] 2
-\&.desktop (/usr/share/applications)
-.PD 0
-.P
-.PD
-Each application has a .desktop file associated with it.
-These
-.PD 0
-.P
-.PD
-files contain most of the information needed to build a menu
-.PD 0
-.P
-.PD
-(e.g.
-"Name", "Exec command", "Icon", "Category")
-.PP
-\f[C]jgmenu_run\ pmenu\f[] is written in python by \@o9000.
-It uses .directory
-.PD 0
-.P
-.PD
-and .desktop files to build a menu, but ignores any .menu files.
-.PD 0
-.P
-.PD
-Instead of the structure specified in the .menu file, it simply maps
-.PD 0
-.P
-.PD
-each ".desktop" application onto one of the ".directory" categories.
-.PD 0
-.P
-.PD
-If a matching ".directory" category does not exist, it tries to
-.PD 0
-.P
-.PD
-cross\-reference "additional categories" to "related categories" in
-.PD 0
-.P
-.PD
-accordance with the XDG menu\-spec.
-.PD 0
-.P
-.PD
-This is a generic approach which avoids Desktop Environment specific
-.PD 0
-.P
-.PD
-rules defined in the .menu file.
-It ensures that all .desktop files
-.PD 0
-.P
-.PD
-are included in the menu.
-.PP
-\f[C]jgmenu_run\ xdg\f[] is written in C by myself.
-It uses libxml2 to parse
-.PD 0
-.P
-.PD
-the .menu file, but is otherwise written from scratch.
-It adheres
-.PD 0
-.P
-.PD
-to the basics of XDG\[aq]s menu\-spec but has a long way to go to
-achieve
-.PD 0
-.P
-.PD
-full compliance.
-.PP
-\f[C]jgmenu_run\ lx\f[] uses LXDE\[aq]s libmenu\-cache to generate an
-XDG
-.PD 0
-.P
-.PD
-compliant menu including separators and internationalization.
-.SS Lesson 3
 .PP
 There are many ways to run jgmenu.
 In lesson 1, you saw jgmenu as a
@@ -303,11 +175,7 @@ This means that it
 .PD
 starts from scratch every time it is called.
 .PP
-Let us put XDG system menus and \f[C]jgmenu_run\f[] to one side and get
-.PD 0
-.P
-.PD
-back to basics.
+So let\[aq]s get back to basics.
 Try the following:
 .IP
 .nf
@@ -319,15 +187,15 @@ EOF
 \f[]
 .fi
 .PP
-If you have not got used to the syntax yet, it just means that you
+If you have not got used to the here\-document syntax yet, it just
 .PD 0
 .P
 .PD
-put the words "xterm" and "firefox" in a text file using a text
+means that you put the words "xterm" and "firefox" in a text file
 .PD 0
 .P
 .PD
-editor.
+(which you can of course do using a text editor).
 Then do:
 .IP
 .nf
@@ -336,11 +204,11 @@ cat\ foo.txt\ |\ jgmenu\ \-\-simple\ \-\-icon\-size=0
 \f[]
 .fi
 .PP
-The option \-\-simple make jgmenu short\-lived and disables all syncing
+The option \-\-simple make jgmenu short\-lived, disables all syncing
 .PD 0
 .P
 .PD
-with tint2
+with tint2 and reads menu items from \f[I]stdin\f[].
 .PP
 The option \-\-icon\-size=0, disables icons (i.e.
 it does not just
@@ -348,18 +216,6 @@ it does not just
 .P
 .PD
 display them at zero size, it actually avoids loading them)
-.PP
-If you have dmenu installed, you will get a very similar result
-.PD 0
-.P
-.PD
-with:
-.IP
-.nf
-\f[C]
-cat\ foo.txt\ |\ dmenu
-\f[]
-.fi
 .SS Lesson 4
 .PP
 As you saw in the previous example, each line fed to \f[I]stdin\f[]
@@ -462,24 +318,157 @@ Settings,^tag(settings)
 Set\ Background\ Image,nitrogen
 EOF
 
-jgmenu\ \-\-vsimple\ <menu.txt
-
-#\ OR
-cat\ menu.txt\ |\ jgmenu\ \-\-vsimple
+jgmenu\ \-\-vsimple\ \-\-csv\-file="menu.txt"
 \f[]
 .fi
+.SS Lesson 7
 .PP
-A couple of points on submenus:
-.PP
-\ \ \- You can press \f[I]backspace\f[] to go back to the parent menu.
-.PP
-\ \ \- You can define the root menu with a ^tag().
-If you do not, it
+freedesktop.org have developed a menu standard which is adhered to
 .PD 0
 .P
 .PD
-\ \ \ \ can still be checked out with ^back().
-.SS Lesson 7
+by the big Desktop Environments.
+We will refer to this type of menu
+.PD 0
+.P
+.PD
+as XDG.
+jgmenu can run three types of XDG(ish) menus: pmenu, xdg and
+.PD 0
+.P
+.PD
+lx.
+.PP
+To understand the subtleties between them, you need a basic
+.PD 0
+.P
+.PD
+appreciataion of the XDG menu\-spec and desktop\-entry\-spec.
+See:
+.PD 0
+.P
+.PD
+http://standards.freedesktop.org/ for further information.
+.PP
+To keep things simple, when discussing XDG paths, only one location
+.PD 0
+.P
+.PD
+will be referred to rather than XDG variables and every possible
+.PD 0
+.P
+.PD
+location.
+So for example, if "/usr/share" is quoted, it may refer to
+.PD 0
+.P
+.PD
+"/usr/local/share", "$HOME/.local/share", etc on your system.
+.PP
+In brief, there are three types of files which define the Linux/BSD
+.PD 0
+.P
+.PD
+system menu:
+.IP \[bu] 2
+\&.menu (/etc/xdg/menus)
+.PD 0
+.P
+.PD
+These are XML files describing such things as the menu categories
+.PD 0
+.P
+.PD
+and directory structure.
+.IP \[bu] 2
+\&.directory (/usr/share/desktop\-directories)
+.PD 0
+.P
+.PD
+These describe the menu directories
+.IP \[bu] 2
+\&.desktop (/usr/share/applications)
+.PD 0
+.P
+.PD
+Each application has a .desktop file associated with it.
+These
+.PD 0
+.P
+.PD
+files contain most of the information needed to build a menu
+.PD 0
+.P
+.PD
+(e.g.
+"Name", "Exec command", "Icon", "Category")
+.PP
+\f[C]pmenu\f[] is written in python by \@o9000.
+It uses .directory and
+.PD 0
+.P
+.PD
+\&.desktop files to build a menu, but ignores any .menu files.
+.PD 0
+.P
+.PD
+Instead of the structure specified in the .menu file, it simply maps
+.PD 0
+.P
+.PD
+each ".desktop" application onto one of the ".directory" categories.
+.PD 0
+.P
+.PD
+If a matching ".directory" category does not exist, it tries to
+.PD 0
+.P
+.PD
+cross\-reference "additional categories" to "related categories" in
+.PD 0
+.P
+.PD
+accordance with the XDG menu\-spec.
+.PD 0
+.P
+.PD
+This is a generic approach which avoids Desktop Environment specific
+.PD 0
+.P
+.PD
+rules defined in the .menu file.
+It ensures that all .desktop files
+.PD 0
+.P
+.PD
+are included in the menu.
+.PP
+\f[C]xdg\f[] is written in C by myself.
+It uses libxml2 to parse the .menu
+.PD 0
+.P
+.PD
+file, but is otherwise written from scratch.
+It adheres to the
+.PD 0
+.P
+.PD
+basics of XDG\[aq]s menu\-spec but is not fully compliant.
+.PP
+\f[C]lx\f[] uses LXDE\[aq]s libmenu\-cache to generate an XDG compliant
+menu
+.PD 0
+.P
+.PD
+including separators and internationalization.
+.PP
+Set \f[C]csv_cmd\f[] in jgmenurc to specify which of these csv\-commands
+you
+.PD 0
+.P
+.PD
+wish to run.
+.SS Lesson 8
 .PP
 You can create a very simple XDG menu without any directories or
 .PD 0
@@ -489,11 +478,11 @@ categories in the following way:
 .IP
 .nf
 \f[C]
-jgmenu_run\ parse\-xdg\ \-\-no\-dirs\ |\ jgmenu\ \-\-vsimple
+jgmenu_run\ xdg\ \-\-no\-dirs\ |\ jgmenu\ \-\-vsimple
 \f[]
 .fi
 .PP
-"parse\-xdg \-\-no\-dirs" outputs all apps with a .desktop file
+"xdg \-\-no\-dirs" outputs all apps with a .desktop file
 .PD 0
 .P
 .PD
@@ -509,27 +498,13 @@ When a menu is open, just start
 .P
 .PD
 typing to invoke a filter.
+.SS Lesson 9
 .PP
-Carrying on the comparison with dmenu, the equivalent can be achieved
+When running pmenu, xdg or lx, you can add menu items to the root
 .PD 0
 .P
 .PD
-by:
-.IP
-.nf
-\f[C]
-jgmenu_run\ parse\-xdg\ \-\-no\-dirs\ |\ awk\ \-F,\ \[aq]{\ print\ $2}\[aq]\ |\ dmenu
-\f[]
-.fi
-.SS Lesson 8
-.PP
-Let\[aq]s go back to pmenu.
-.PP
-If you create the files append.csv and/or prepend.csv in
-.PD 0
-.P
-.PD
-$HOME/.config/jgmenu, these will be added to your root menu.
+menu by editing append.csv and/or prepend.csv in ~/.config/jgmenu.
 .PP
 For example, you could do:
 .IP
@@ -549,8 +524,6 @@ Suspend,systemctl\ \-i\ suspend,system\-log\-out
 Reboot,systemctl\ \-i\ reboot,system\-reboot
 Poweroff,systemctl\ \-i\ poweroff,system\-shutdown
 EOF
-
-jgmenu_run\ pmenu
 \f[]
 .fi
 .PP

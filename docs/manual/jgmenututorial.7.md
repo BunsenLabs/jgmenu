@@ -1,6 +1,6 @@
 % JGMENUTUTORIAL(7)  
 % Johan Malm  
-% 15 Jul, 2017  
+% 17 December, 2017  
 
 # NAME
 
@@ -18,7 +18,7 @@ Lesson 1
 
 After installing jgmenu, you can get going quickly by running:  
 
-    jgmenu_run
+    jgmenu
 
 That's it!  
 
@@ -26,135 +26,87 @@ There are three points worth noting about what you have just done:
 
   - You should see a "Linux/BSD system" menu with categories such as  
     "Graphics" and "Office". We call this menu "pmenu" (explained  
-    below).
+    in lesson 7).
 
-  - If you use tint2, jgmenu should have copied its appearance,  
-    position and alignment.  
+  - If you use tint2, jgmenu should have imitated its appearance  
+    and aligned with its position.  
 
   - You have just started a long-running application. If you click  
     outside the menu, press escape or select a menu item (using  
     mouse or keyboard), the menu will no longer be visible but is  
     still running. It can be awoken (made visible) by executing  
-    `jgmenu_run` again.
+    `jgmenu_run`.
 
 If you do not use tint2 or if you wish to override some of its  
 settings, you can create a config file by running:  
 
-    jgmenu_run init
+    jgmenu init
 
 Edit this config file (~/.config/jgmenu/jgmenurc) to suit your  
-system. Read JGMENU-CONFIG(1) for further information.  
+system. Read the man page JGMENU(1) for further information.  
 
 If you have a config file at ~/.config/jgmenu/jgmenurc and want to  
 ignore it for the purposes of running one of the lessons, just use  
 the command line argument "--config-file=" without specifying a file.  
 
-If you use tint2 and want a traditional "start menu", you can do one  
-of the following using tint2conf or by editing tint2rc directly:
+Lesson 2
+--------
+
+You can also start jgmenu with  
+
+    jgmenu_run
+
+The advantage of this wrapper is that it will either awake jgmenu or  
+start a new instance depending on if it is already running or not.  
+
+This makes it suitable for using with panels and keyboard shortcuts.  
+
+For example, if you use tint2 and want a traditional "start menu",  
+you can do one of the following using tint2conf or by editing tint2rc  
+directly:
 
   - Add jgmenu.desktop to your launcher  
 
   - Create a button setting `button_lclick_command = jgmenu_run`  
 
-Lesson 2
+Lesson 3
 --------
 
 From this point onwards, it is assumed that you understand basic  
 shell usage including re-direction (e.g. \<, >) and piping (e.g. |).
 
-The syntax below is used to denote the creation of a text file from  
-whatever is between the EOFs. You can of course use your favourite  
-text editor instead.
+The syntax below (here-document) is used to denote the creation of a  
+text file from whatever is between the EOFs. You can of course use  
+your favourite text editor instead.
 
     cat >file <<EOF
     foo
     bar
     EOF
 
-freedesktop.org have developed a menu standard which is adhered to  
-by the big Desktop Environments. In this tutorial we will refer to  
-this type of menu as XDG.
-
-There are at least two ways to run XDG(ish) menus:
-
-  - `jgmenu_run pmenu`  
-  - `jgmenu_run xdg`  
-
-To understand the subtleties between these, you need a basic  
-appreciataion of the XDG menu-spec and desktop-entry-spec. See:  
-http://standards.freedesktop.org/ for further information.  
-
-To keep things simple, when discussing XDG paths, only one location  
-will be referred to rather than XDG variables and every possible  
-location. So for example, if "/usr/share" is quoted, it may refer to  
-"/usr/local/share", "$HOME/.local/share", etc on your system.
-
-In brief, there are three types of files which define the Linux/BSD  
-system menu:
-
-  - .menu (/etc/xdg/menus)  
-    These are XML files describing such things as the menu categories  
-    and directory structure.
-
-  - .directory (/usr/share/desktop-directories)  
-    These describe the menu directories
-
-  - .desktop (/usr/share/applications)  
-    Each application has a .desktop file associated with it. These  
-    files contain most of the information needed to build a menu  
-    (e.g. "Name", "Exec command", "Icon", "Category")
-
-`jgmenu_run pmenu` is written in python by @o9000. It uses .directory  
-and .desktop files to build a menu, but ignores any .menu files.  
-Instead of the structure specified in the .menu file, it simply maps  
-each ".desktop" application onto one of the ".directory" categories.  
-If a matching ".directory" category does not exist, it tries to  
-cross-reference "additional categories" to "related categories" in  
-accordance with the XDG menu-spec.  
-This is a generic approach which avoids Desktop Environment specific  
-rules defined in the .menu file. It ensures that all .desktop files  
-are included in the menu.
-
-`jgmenu_run xdg` is written in C by myself. It uses libxml2 to parse  
-the .menu file, but is otherwise written from scratch. It adheres  
-to the basics of XDG's menu-spec but has a long way to go to achieve  
-full compliance.
-
-`jgmenu_run lx` uses LXDE's libmenu-cache to generate an XDG  
-compliant menu including separators and internationalization.  
-
-Lesson 3
----------
-
 There are many ways to run jgmenu. In lesson 1, you saw jgmenu as a  
 long-running application. As we go through the next few lessons we  
 will run jgmenu as a short-lived applications. This means that it  
 starts from scratch every time it is called.
 
-Let us put XDG system menus and `jgmenu_run` to one side and get  
-back to basics. Try the following:
+So let's get back to basics. Try the following:
 
     echo >foo.txt <<EOF
     xterm
     firefox
     EOF
 
-If you have not got used to the syntax yet, it just means that you  
-put the words "xterm" and "firefox" in a text file using a text  
-editor. Then do:
+If you have not got used to the here-document syntax yet, it just  
+means that you put the words "xterm" and "firefox" in a text file  
+(which you can of course do using a text editor). Then do:
 
     cat foo.txt | jgmenu --simple --icon-size=0
 
-The option --simple make jgmenu short-lived and disables all syncing  
-with tint2
+The option --simple make jgmenu short-lived, disables all syncing  
+with tint2 and reads menu items from _stdin_.  
 
 The option --icon-size=0, disables icons (i.e. it does not just  
 display them at zero size, it actually avoids loading them)
-
-If you have dmenu installed, you will get a very similar result  
-with:
-
-    cat foo.txt | dmenu
 
 Lesson 4
 ---------
@@ -218,45 +170,81 @@ by ^tag() and ^checkout(). Try this:
     Set Background Image,nitrogen
     EOF
     
-    jgmenu --vsimple <menu.txt
-    
-    # OR
-    cat menu.txt | jgmenu --vsimple
-
-A couple of points on submenus:
-
-  - You can press *backspace* to go back to the parent menu.  
-
-  - You can define the root menu with a ^tag(). If you do not, it  
-    can still be checked out with ^back().
+    jgmenu --vsimple --csv-file="menu.txt"
 
 Lesson 7
+--------
+
+freedesktop.org have developed a menu standard which is adhered to  
+by the big Desktop Environments. We will refer to this type of menu  
+as XDG. jgmenu can run three types of XDG(ish) menus: pmenu, xdg and  
+lx.
+
+To understand the subtleties between them, you need a basic  
+appreciataion of the XDG menu-spec and desktop-entry-spec. See:  
+http://standards.freedesktop.org/ for further information.  
+
+To keep things simple, when discussing XDG paths, only one location  
+will be referred to rather than XDG variables and every possible  
+location. So for example, if "/usr/share" is quoted, it may refer to  
+"/usr/local/share", "$HOME/.local/share", etc on your system.
+
+In brief, there are three types of files which define the Linux/BSD  
+system menu:
+
+  - .menu (/etc/xdg/menus)  
+    These are XML files describing such things as the menu categories  
+    and directory structure.
+
+  - .directory (/usr/share/desktop-directories)  
+    These describe the menu directories
+
+  - .desktop (/usr/share/applications)  
+    Each application has a .desktop file associated with it. These  
+    files contain most of the information needed to build a menu  
+    (e.g. "Name", "Exec command", "Icon", "Category")
+
+`pmenu` is written in python by @o9000. It uses .directory and  
+.desktop files to build a menu, but ignores any .menu files.  
+Instead of the structure specified in the .menu file, it simply maps  
+each ".desktop" application onto one of the ".directory" categories.  
+If a matching ".directory" category does not exist, it tries to  
+cross-reference "additional categories" to "related categories" in  
+accordance with the XDG menu-spec.  
+This is a generic approach which avoids Desktop Environment specific  
+rules defined in the .menu file. It ensures that all .desktop files  
+are included in the menu.
+
+`xdg` is written in C by myself. It uses libxml2 to parse the .menu  
+file, but is otherwise written from scratch. It adheres to the  
+basics of XDG's menu-spec but is not fully compliant.  
+
+`lx` uses LXDE's libmenu-cache to generate an XDG compliant menu  
+including separators and internationalization.  
+
+Set `csv_cmd` in jgmenurc to specify which of these csv-commands you  
+wish to run.  
+
+Lesson 8
 --------
 
 You can create a very simple XDG menu without any directories or  
 categories in the following way:  
 
-    jgmenu_run parse-xdg --no-dirs | jgmenu --vsimple
+    jgmenu_run xdg --no-dirs | jgmenu --vsimple
 
-"parse-xdg --no-dirs" outputs all apps with a .desktop file  
+"xdg --no-dirs" outputs all apps with a .desktop file  
 (normally in /usr/share/applications) without and categories  
 or directories.
 
 jgmenu has a *search* capability. When a menu is open, just start  
 typing to invoke a filter.
 
-Carrying on the comparison with dmenu, the equivalent can be achieved  
-by:
-
-    jgmenu_run parse-xdg --no-dirs | awk -F, '{ print $2}' | dmenu
-
-Lesson 8
+Lesson 9
 --------
 
-Let's go back to pmenu.
-
-If you create the files append.csv and/or prepend.csv in  
-$HOME/.config/jgmenu, these will be added to your root menu.  
+When running pmenu, xdg or lx, you can add menu items to the root  
+menu by editing append.csv and/or prepend.csv in ~/.config/jgmenu.  
 
 For example, you could do:  
 
@@ -275,6 +263,6 @@ For example, you could do:
     Poweroff,systemctl -i poweroff,system-shutdown
     EOF
     
-    jgmenu_run pmenu
 
 ^sep() inserts a horizontal separator line
+

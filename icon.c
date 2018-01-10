@@ -189,7 +189,6 @@ void icon_load(void)
 	}
 	icon_find_all(&icon_paths, icon_size);
 	list_for_each_entry(path, &icon_paths, list) {
-		/* FIXME: do better than type casting struct */
 		icon = (struct icon *)path->icon;
 		sbuf_cpy(&icon->path, path->path.buf);
 		if (cache_create_symlink(icon->path.buf, icon->name) == 0) {

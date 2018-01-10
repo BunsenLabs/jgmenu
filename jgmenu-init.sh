@@ -12,26 +12,25 @@ color_title_bg show_title search_all_items ignore_xsettings arrow_show \
 read_tint2rc tint2_rules tint2_button"
 
 usage () {
-	printf "usage: jgmenu_run init [<options>]\n\n"
-	printf "Create or amend config file\n\n"
-	printf "If no theme is specified, jgmenurc will be created/amended with default values\n\n"
+	printf "usage: jgmenu init [<options>]\n"
+	printf "Create/amend config files\n"
 	printf "Options include:\n"
 	printf "    --config-file=<file>  Specify config file\n"
 	printf "    --theme=<theme>       Create config file with a particular theme\n"
-	printf "                          Valid themes include:\n"
-	printf "                            - bunsenlabs\n\n"
+	printf "                          Valid themes include: bunsenlabs\n\n"
 }
 
 populate_tmp_file () {
 cat <<'EOF' >>"${tmp_jgmenurc}"
 stay_alive          = 1
 hide_on_startup     = 0
-csv_cmd             = jgmenu_run parse-pmenu
+csv_cmd             = pmenu
 tint2_look          = 1
 at_pointer          = 0
 multi_window        = 1
 terminal_exec       = x-terminal-emulator
 terminal_args       = -e
+monitor             = 0
 menu_margin_x       = 0
 menu_margin_y       = 32
 menu_width          = 200
@@ -96,7 +95,7 @@ amend_jgmenurc () {
 	do
 		v=$(echo ${line%%=*} | tr -d ' ')
 		test -z "${v}" && continue
-		if ! grep "^${v}[\ =]\|[\ #]${v}[\ =]" "${jgmenurc}" >/dev/null
+		if ! grep "^${v}[\ =]\|[\ #]${v}[\ =]" "${jgmenurc}" >/dev/null 2>&1
 		then
 			print_start_msg
 			printf "${prefix}%b\n" "${line}"
@@ -119,7 +118,7 @@ do
 		exit 0
 		;;
 	*)
-		printf "fatal: unknown option: \`%s\'\n" $1
+		printf "fatal: unknown option: '%s'\n" $1
 		usage
 		exit 1
 		;;
