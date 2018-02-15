@@ -45,6 +45,8 @@
 #include "args.h"
 #include "widgets.h"
 #include "pm.h"
+#include "workarea.h"
+#include "charset.h"
 
 #define DEBUG_ICONS_LOADED_NOTIFICATION 0
 
@@ -805,28 +807,52 @@ void launch_menu_at_pointer(void)
 	int di;
 	unsigned int du;
 	struct point pos;
+	struct area wa;
 
 	XQueryPointer(ui->dpy, DefaultRootWindow(ui->dpy), &dw, &dw, &di, &di,
 		      &pos.x, &pos.y, &du);
-	if (pos.x < geo_get_screen_width() + geo_get_screen_x0() -
-	    geo_get_menu_width()) {
+
+	/* We use config.menu_{v,h}align to tell us where the panel is */
+	if (config.menu_valign == TOP)
+		wa.y = geo_get_screen_y0() + config.menu_margin_y;
+	else
+		wa.y = geo_get_screen_y0();
+	wa.h = geo_get_screen_height() - config.menu_margin_y;
+
+	if (config.menu_halign == LEFT)
+		wa.x = geo_get_screen_x0() + config.menu_margin_x;
+	else
+		wa.x = geo_get_screen_x0();
+	wa.w = geo_get_screen_width() - config.menu_margin_x;
+
+	if (pos.x < wa.w + wa.x - geo_get_menu_width()) {
 		geo_set_menu_halign(LEFT);
+		if (config.menu_halign == LEFT && pos.x < config.menu_margin_x)
+			pos.x = config.menu_margin_x;
 		geo_set_menu_margin_x(pos.x);
 	} else {
 		geo_set_menu_halign(RIGHT);
+		if (config.menu_halign == RIGHT && pos.x > wa.w)
+			pos.x = wa.w;
 		geo_set_menu_margin_x(geo_get_screen_width() - pos.x);
 	}
 
-	if (pos.y < geo_get_screen_height() + geo_get_screen_y0() -
-	    geo_get_menu_height()) {
+	if (pos.y < wa.h + wa.y - geo_get_menu_height()) {
 		geo_set_menu_valign(TOP);
+		if (config.menu_valign == TOP && pos.y < config.menu_margin_y)
+			pos.y = config.menu_margin_y;
 		geo_set_menu_margin_y(pos.y);
 	} else if (geo_get_menu_height() < pos.y) {
 		geo_set_menu_valign(BOTTOM);
+		if (config.menu_valign == BOTTOM && pos.y > wa.h)
+			pos.y = wa.h;
 		geo_set_menu_margin_y(geo_get_screen_height() - pos.y);
 	} else {
 		geo_set_menu_valign(BOTTOM);
-		geo_set_menu_margin_y(0);
+		if (config.menu_valign == BOTTOM)
+			geo_set_menu_margin_y(config.menu_margin_y);
+		else
+			geo_set_menu_margin_y(0);
 	}
 	set_submenu_width();
 }
@@ -926,14 +952,14 @@ static void awake_menu(void)
 		launch_menu_at_pointer();
 		resize();
 	}
-	/* for speed improvement, set tint2_look = 0 */
+	tint2env_read_socket();
 	if (config.tint2_look && !config.at_pointer) {
-		tint2env_read_socket();
 		tint2_align();
 		update(1);
 	}
 	XMapWindow(ui->dpy, ui->w[ui->cur].win);
 	ui_map_window(geo_get_menu_width(), geo_get_menu_height());
+	XRaiseWindow(ui->dpy, ui->w[ui->cur].win);
 	grabkeyboard();
 	grabpointer();
 }
@@ -1098,11 +1124,16 @@ void read_csv_file(FILE *fp)
 		buf[BUFSIZ - 1] = '\0';
 		if (strlen(buf) == BUFSIZ - 1)
 			die("item %d is too long", i);
-		p = strchr(buf, '\n');
+		p = strrchr(buf, '\n');
 		if (p)
 			*p = '\0';
 		else
 			die("item %d was not correctly terminated with a '\\n'", i);
+		if (!utf8_validate(buf, p - &buf[0])) {
+			warn("line not utf-8 compatible: '%s'", buf);
+			i--;
+			continue;
+		}
 		if ((buf[0] == '#') ||
 		    (buf[0] == '\n') ||
 		    (buf[0] == '\0')) {
@@ -1472,28 +1503,14 @@ static int is_outside_menu_windows(XMotionEvent **e)
 /* Pointer vertical offset (not sure why this is needed) */
 #define MOUSE_FUDGE 3
 
-void mouse_event(XEvent *e)
+void mouse_release(XEvent *e)
 {
-	XMotionEvent *xme;
 	XButtonReleasedEvent *ev;
 	struct point mouse_coords;
-	int outside_menu_windows = 0;
 
 	mouse_coords = mousexy();
 	mouse_coords.y -= MOUSE_FUDGE;
-
-	xme = (XMotionEvent *)e;
-	if (is_outside_menu_windows(&xme))
-		outside_menu_windows = 1;
-
 	ev = &e->xbutton;
-
-	/* left/right-click outside menu windows */
-	if ((ev->button == Button1 || ev->button == Button3) &&
-	    outside_menu_windows) {
-		hide_or_exit();
-		return;
-	}
 
 	/* right-click */
 	if (ev->button == Button3) {
@@ -1540,6 +1557,29 @@ void mouse_event(XEvent *e)
 			ui_win_del_beyond(ui->cur);
 		action_cmd(menu.sel->cmd);
 	}
+}
+
+static int mouse_outside(XEvent *e)
+{
+	XMotionEvent *xme;
+	XButtonReleasedEvent *ev;
+	struct point mouse_coords;
+	int outside_menu_windows = 0;
+
+	mouse_coords = mousexy();
+	mouse_coords.y -= MOUSE_FUDGE;
+
+	xme = (XMotionEvent *)e;
+	if (is_outside_menu_windows(&xme))
+		outside_menu_windows = 1;
+
+	ev = &e->xbutton;
+
+	/* left/right-click outside menu windows */
+	if ((ev->button == Button1 || ev->button == Button3) &&
+	    outside_menu_windows)
+		return 1;
+	return 0;
 }
 
 static double timespec_to_sec(struct timespec *ts)
@@ -1929,6 +1969,8 @@ void run(void)
 		}
 
 		if (XPending(ui->dpy)) {
+			static int close_pending;
+
 			XNextEvent(ui->dpy, &ev);
 
 			/* UTF-8 support */
@@ -1940,7 +1982,25 @@ void run(void)
 				XRefreshKeyboardMapping(&ev.xmapping);
 				break;
 			case ButtonRelease:
-				mouse_event(&ev);
+				if (close_pending) {
+					close_pending = 0;
+					hide_or_exit();
+					break;
+				}
+				mouse_release(&ev);
+				break;
+			case ButtonPress:
+				/*
+				 * tint2 buttons/execps take action on
+				 * "ButtonRelease". We want to be able to use
+				 * these to both open and close the menu.
+				 * When passing mouse events through tint2 to
+				 * the WM, we want menu to be able to repsond
+				 * to "ButtonPress" without immediately dying
+				 * on "ButtonRelease".
+				 */
+				if (mouse_outside(&ev))
+					close_pending = 1;
 				break;
 			case KeyPress:
 				key_event(&ev.xkey);
@@ -2138,11 +2198,20 @@ int main(int argc, char *argv[])
 	if (config.tint2_look)
 		read_tint2rc();
 
-	/* Parse jgmenurc again to overrule tint2rc values */
+	/*
+	 * If _NET_WORKAREA is supported by the Window Manager, set
+	 * config.menu_margin_{x|y} and config.{v|h}align if possible
+	 */
+	workarea_set_margin();
+	workarea_set_panel_pos();
+
+	/* Parse jgmenurc again to overrule tint2rc and workarea values */
 	if (config.tint2_look && !arg_vsimple)
 		config_read_jgmenurc(arg_config_file);
 
 	config_post_process();
+	/* config variables will not be changed after this point */
+
 	set_font();
 	set_theme();
 	init_geo_variables_from_config();
@@ -2162,6 +2231,8 @@ int main(int argc, char *argv[])
 	if (!fp)
 		fp = stdin;
 	read_csv_file(fp);
+	if (fp && fp != stdin)
+		fclose(fp);
 	if (config.multi_window)
 		rm_back_items();
 	build_tree();

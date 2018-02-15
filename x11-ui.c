@@ -24,6 +24,40 @@
 
 struct UI *ui;
 
+static void *win_prop(Window win, Atom property, Atom req_type)
+{
+	Atom actual_type_return;
+	int actual_format_return = 0;
+	unsigned long nitems_return = 0;
+	unsigned long bytes_after_return = 0;
+	unsigned char *prop_return;
+
+	if (!win)
+		return NULL;
+	if (XGetWindowProperty(ui->dpy, win, property, 0, 0x7fffffff, False,
+			       req_type, &actual_type_return,
+			       &actual_format_return, &nitems_return,
+			       &bytes_after_return, &prop_return) != Success)
+		return NULL;
+	return prop_return;
+}
+
+int ui_get_workarea(struct area *a)
+{
+	long *wa;
+
+	wa = win_prop(ui->root, XInternAtom(ui->dpy, "_NET_WORKAREA", False),
+		      XA_CARDINAL);
+	if (!wa)
+		return -1;
+	a->x = (int)wa[0];
+	a->y = (int)wa[1];
+	a->w = (int)wa[2];
+	a->h = (int)wa[3];
+	XFree(wa);
+	return 0;
+}
+
 void ui_clear_canvas(void)
 {
 	cairo_save(ui->w[ui->cur].c);
@@ -107,24 +141,24 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 	int i, n, x, y, di;
 	unsigned int du;
 	Window dw;
-	XineramaScreenInfo *info;
+	XineramaScreenInfo *screen_info;
 
-	info = XineramaQueryScreens(ui->dpy, &n);
-	BUG_ON(!info);
+	screen_info = XineramaQueryScreens(ui->dpy, &n);
+	BUG_ON(!screen_info);
 	XQueryPointer(ui->dpy, ui->root, &dw, &dw, &x, &y, &di, &di, &du);
 	for (i = 0; i < n; i++)
-		if (INTERSECT(x, y, 1, 1, info[i]))
+		if (INTERSECT(x, y, 1, 1, screen_info[i]))
 			break;
 	if (monitor) {
 		if (monitor > n)
 			die("cannot connect to monitor '%d' (max %d)", monitor, n);
 		i = monitor - 1;
 	}
-	*x0 = info[i].x_org;
-	*y0 = info[i].y_org;
-	*width = info[i].width;
-	*height = info[i].height;
-	XFree(info);
+	*x0 = screen_info[i].x_org;
+	*y0 = screen_info[i].y_org;
+	*width = screen_info[i].width;
+	*height = screen_info[i].height;
+	XFree(screen_info);
 }
 
 void set_wm_class(void)

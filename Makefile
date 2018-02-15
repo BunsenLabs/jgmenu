@@ -6,6 +6,9 @@
 # Define PYTHON3_POLYGLOT=1 if '#!/usr/bin/env python3' is not going to work
 # on your system.
 #
+# Define NO_LX=1 if you do not want to build jgmenu-lx (which requires
+# libmenu-cache >=v1.1)
+#
 
 VER      = $(shell ./scripts/version-gen.sh)
 
@@ -14,32 +17,50 @@ VER      = $(shell ./scripts/version-gen.sh)
 
 include ./Makefile.inc
 
+DEPDIR := .d
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
+
 SCRIPTS_SHELL  = jgmenu_run jgmenu-init.sh
 
 SCRIPTS_PYTHON = jgmenu-pmenu.py jgmenu-unity-hack.py
 
-PROGS	 = jgmenu jgmenu-xdg jgmenu-ob jgmenu-socket jgmenu-lx
+PROGS	 = jgmenu jgmenu-xdg jgmenu-ob jgmenu-socket
+ifneq ($(NO_LX),1)
+PROGS += jgmenu-lx
+endif
 
-OBJS =  x11-ui.o config.o util.o geometry.o isprog.o sbuf.o icon-find.o \
-        icon.o xpm-loader.o xdgdirs.o xdgapps.o xsettings.o xsettings-helper.o \
-	filter.o compat.o hashmap.o lockfile.o argv-buf.o t2conf.o t2env.o \
-	unix_sockets.o bl.o cache.o back.o terminal.o restart.o theme.o \
-	gtkconf.o font.o args.o widgets.o pm.o socket.o
-
-LIB_H = $(shell find . -name '*.h' -print)
-
+objects = $(patsubst ./%.c,%.o,$(shell find . -maxdepth 1 -name '*.c' -print))
+mains = $(patsubst %,%.o,$(PROGS))
+OBJS = $(filter-out $(mains),$(objects))
+SRCS = $(patsubst %.o,%.c,$(OBJS))
 JGMENU_LIB = libjgmenu.a
 
 all: $(PROGS)
-	@echo ""
-	@echo "Warning: The CLI has changed. Please read release notes."
 
-$(PROGS): % : $(OBJS) %.o
+jgmenu: jgmenu.o x11-ui.o config.o util.o geometry.o isprog.o sbuf.o \
+	icon-find.o icon.o xpm-loader.o xdgdirs.o xsettings.o \
+	xsettings-helper.o filter.o compat.o lockfile.o argv-buf.o t2conf.o \
+	t2env.o unix_sockets.o bl.o cache.o back.o terminal.o restart.o \
+	theme.o gtkconf.o font.o args.o widgets.o pm.o socket.o workarea.o \
+	charset.o
+jgmenu-xdg: jgmenu-xdg.o util.o sbuf.o xdgdirs.o xdgapps.o argv-buf.o \
+	charset.o
+jgmenu-ob: jgmenu-ob.o util.o sbuf.o
+jgmenu-socket: jgmenu-socket.o util.o sbuf.o unix_sockets.o socket.o
+ifneq ($(NO_LX),1)
+jgmenu-lx: jgmenu-lx.o util.o sbuf.o xdgdirs.o argv-buf.o back.o fmt.o
+endif
+$(PROGS):
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c $(LIB_H)
-	$(QUIET_CC)$(CC) $(CFLAGS) -c $*.c
+%.o : %.c
+%.o : %.c $(DEPDIR)/%.d
+	$(QUIET_CC)$(CC) $(DEPFLAGS) $(CFLAGS) -c $<
+	@mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d && touch $@
 
+$(DEPDIR)/%.d: ;
+.PRECIOUS: $(DEPDIR)/%.d
 
 install: $(PROGS)
 	@install -d $(DESTDIR)$(bindir)
@@ -60,7 +81,8 @@ endif
 	@./scripts/create_desktop_file.sh $(DESTDIR)$(prefix)
 
 clean:
-	@$(RM) $(PROGS) *.o *.a
+	@$(RM) $(PROGS) *.o *.a $(DEPDIR)/*.d
+	@$(RM) -r .d/ 
 	@$(MAKE) --no-print-directory -C tests/ clean
 	@$(MAKE) --no-print-directory -C tests/helper/ clean
 
@@ -77,3 +99,8 @@ ex:
 check:
 	@./scripts/checkpatch-wrapper.sh *.c
 	@./scripts/checkpatch-wrapper.sh *.h
+
+print-%:
+	@echo '$*=$($*)'
+
+include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
