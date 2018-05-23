@@ -1,4 +1,4 @@
-jgmenu (0.8.2-1) UNRELEASED; urgency=medium
+jgmenu (0.8.2-1+bl9) stretch-backports; urgency=medium
 
   * New upstream release
   * Remove NO_LX=1 as it is handled in Makefile
