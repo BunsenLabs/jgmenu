@@ -49,14 +49,6 @@ SCRIPTS_PYTHON = jgmenu-pmenu.py jgmenu-unity-hack.py \
 
 PROGS	 = jgmenu jgmenu-xdg jgmenu-ob jgmenu-socket
 
-# wrap in ifneq to ensure we respect user defined NO_LX=1
-ifneq ($(NO_LX),1)
-NO_LX := $(shell pkg-config "libmenu-cache >= 1.1.0" "glib-2.0" || echo "1")
-endif
-ifneq ($(NO_LX),1)
-PROGS += jgmenu-lx
-endif
-
 objects = $(patsubst ./%.c,%.o,$(shell find . -maxdepth 1 -name '*.c' -print))
 mains = $(patsubst %,%.o,$(PROGS))
 OBJS = $(filter-out $(mains),$(objects))
@@ -75,9 +67,6 @@ jgmenu-xdg: jgmenu-xdg.o util.o sbuf.o xdgdirs.o xdgapps.o argv-buf.o \
 	charset.o
 jgmenu-ob: jgmenu-ob.o util.o sbuf.o
 jgmenu-socket: jgmenu-socket.o util.o sbuf.o unix_sockets.o socket.o
-ifneq ($(NO_LX),1)
-jgmenu-lx: jgmenu-lx.o util.o sbuf.o xdgdirs.o argv-buf.o back.o fmt.o
-endif
 $(PROGS):
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
