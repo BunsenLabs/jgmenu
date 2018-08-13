@@ -55,6 +55,7 @@ static pthread_t thread;	   /* worker thread for loading icons	  */
 static int pipe_fds[2];		   /* talk between threads + catch sig    */
 static timer_t tmr_mouseover;
 static int sw_close_pending;
+static int super_key_pressed;
 
 struct item {
 	char *buf;
@@ -150,6 +151,28 @@ void version(void)
 {
 	printf("%s\n", VERSION);
 	exit(0);
+}
+
+int level(struct node *n)
+{
+	int i = 0;
+
+	while (n->parent) {
+		n = n->parent;
+		++i;
+	}
+	return i;
+}
+
+void print_nodes(void)
+{
+	struct node *n;
+
+	list_for_each_entry(n, &menu.nodes, node) {
+		fprintf(stderr, "%d", level(n));
+		fprintf(stderr, "%.5s ", n->item->tag);
+	}
+	fprintf(stderr, "\n");
 }
 
 struct item *filter_head(void)
@@ -287,12 +310,10 @@ void update_filtered_list(void)
 	INIT_LIST_HEAD(&menu.filter);
 
 	if (filter_needle_length()) {
-		if (config.multi_window) {
-			ui_win_del_beyond(0);
-			geo_set_cur(0);
-			checkout_rootnode();
-			pipemenu_del_all();
-		}
+		ui_win_del_beyond(0);
+		geo_set_cur(0);
+		checkout_rootnode();
+		pipemenu_del_all();
 		list_for_each_entry(item, &menu.master, master) {
 			if (!strncmp("^checkout(", item->cmd, 10) ||
 			    !strncmp("^tag(", item->cmd, 5) ||
@@ -569,6 +590,7 @@ void draw_menu(void)
 		/* Draw submenu arrow */
 		if (config.arrow_width && (!strncmp(p->cmd, "^checkout(", 10) ||
 					   !strncmp(p->cmd, "^pipe(", 6) ||
+					   !strncmp(p->cmd, "^root(", 6) ||
 					   !strncmp(p->cmd, "^sub(", 5)))
 			draw_submenu_arrow(p);
 
@@ -585,12 +607,10 @@ void draw_menu(void)
 		if (p == menu.last)
 			break;
 	}
-
 	if (filter_tail() != menu.last)
 		draw_items_below_indicator();
 	if (filter_head() != menu.first)
 		draw_items_above_indicator();
-
 	ui_map_window(geo_get_menu_width(), geo_get_menu_height());
 }
 
@@ -600,12 +620,10 @@ struct node *get_node_from_tag(const char *tag)
 
 	if (!tag)
 		return NULL;
-
 	list_for_each_entry(n, &menu.nodes, node) {
 		if (!strcmp(tag, n->item->tag))
 			return n;
 	}
-
 	return NULL;
 }
 
@@ -687,35 +705,43 @@ void set_submenu_height(void)
 
 int tag_exists(const char *tag)
 {
-	struct node *n;
+	struct item *item;
 
 	if (!tag)
 		return 0;
-	list_for_each_entry(n, &menu.nodes, node) {
-		if (!strcmp(tag, n->item->tag))
+	list_for_each_entry(item, &menu.master, master)
+		if (item->tag && !strcmp(tag, item->tag))
 			return 1;
-	}
 	return 0;
+}
+
+struct item *get_item_from_tag(const char *tag)
+{
+	struct item *item;
+
+	BUG_ON(!tag);
+	list_for_each_entry(item, &menu.master, master)
+		if (item->tag && !strcmp(tag, item->tag))
+			return item;
+	if (tag && strncmp(tag, "root", 4))
+		fprintf(stderr, "warning: could not find tag '%s'\n", tag);
+	return NULL;
 }
 
 void find_subhead(const char *tag)
 {
-	if (!tag || !strncmp(tag, "__root__", 8)) {
-		menu.current_node = list_first_entry_or_null(&menu.nodes, struct node, node);
-		menu.subhead = list_first_entry_or_null(&menu.master, struct item, master);
-	} else {
-		if (!tag_exists(tag)) {
-			warn("tag '%s' does not exist", tag);
-			return;
-		}
-		menu.current_node = get_node_from_tag(tag);
-		if (!menu.current_node)
-			die("node '%s' does not exist", tag);
-		menu.subhead = container_of((menu.current_node->item)->master.next,
-					    struct item, master);
-		if (!menu.subhead)
-			die("no menu.subhead");
+	BUG_ON(!tag);
+	if (!tag_exists(tag)) {
+		warn("tag '%s' does not exist", tag);
+		return;
 	}
+	menu.current_node = get_node_from_tag(tag);
+	if (!menu.current_node)
+		die("node '%s' does not exist", tag);
+	menu.subhead = container_of((menu.current_node->item)->master.next,
+				    struct item, master);
+	if (!menu.subhead)
+		die("no menu.subhead");
 }
 
 void find_subtail(const char *tag)
@@ -739,40 +765,35 @@ void checkout_tag(const char *tag)
 
 void checkout_submenu(char *tag)
 {
-	if (config.multi_window && geo_cur() >= MAX_NR_WINDOWS - 1) {
+	if (geo_cur() >= MAX_NR_WINDOWS - 1) {
 		warn("Maximum number of windows reached ('%d')", MAX_NR_WINDOWS);
 		return;
 	}
 	checkout_tag(tag);
-	if (config.multi_window)
-		geo_win_add(menu.sel->area);
+	geo_win_add(menu.sel->area);
 	set_submenu_height();
 	set_submenu_width();
-	if (config.multi_window)
-		ui_win_add(geo_get_menu_x0(), geo_get_menu_y0(),
-			   geo_get_menu_width(), geo_get_menu_height(),
-			   geo_get_screen_width(), geo_get_screen_height(),
-			   font_get());
+	ui_win_add(geo_get_menu_x0(), geo_get_menu_y0(),
+		   geo_get_menu_width(), geo_get_menu_height(),
+		   geo_get_screen_width(), geo_get_screen_height(),
+		   font_get());
 	menu.current_node->wid = ui->w[ui->cur].win;
 }
 
 void checkout_parentmenu(char *tag)
 {
 	checkout_tag(tag);
-	if (config.multi_window) {
-		geo_win_del();
-		ui_win_del();
-	} else {
-		set_submenu_height();
-		set_submenu_width();
-	}
+	/* If we've used ^root(tag), we're alreday at top window */
+	if (!ui->cur)
+		return;
+	geo_win_del();
+	ui_win_del();
 }
 
 void checkout_rootmenu(char *tag)
 {
 	checkout_tag(tag);
-	if (config.multi_window)
-		geo_set_cur(0);
+	geo_set_cur(0);
 	set_submenu_height();
 	set_submenu_width();
 }
@@ -968,19 +989,6 @@ static void awake_menu(void)
 	grabpointer();
 }
 
-struct item *get_item_from_tag(const char *tag)
-{
-	struct item *item;
-
-	BUG_ON(!tag);
-	list_for_each_entry(item, &menu.master, master)
-		if (item->tag && !strcmp(tag, item->tag))
-			return item;
-	if (tag && strncmp(tag, "root", 4))
-		fprintf(stderr, "warning: could not find tag '%s'\n", tag);
-	return NULL;
-}
-
 int node_exists(const char *name)
 {
 	struct node *n;
@@ -998,11 +1006,7 @@ void create_node(const char *name, struct node *parent)
 
 	n = xmalloc(sizeof(struct node));
 	BUG_ON(!name);
-	if (!strcmp(name, "__root__"))
-		n->item = list_first_entry_or_null(&menu.master,
-						   struct item, master);
-	else
-		n->item = get_item_from_tag(name);
+	n->item = get_item_from_tag(name);
 	n->last_sel = NULL;
 	n->last_first = NULL;
 	n->parent = parent;
@@ -1011,23 +1015,18 @@ void create_node(const char *name, struct node *parent)
 }
 
 /* Create nodal tree from tagged items */
-void walk_tagged_items(struct item *this, struct node *parent)
+struct node *walk_tagged_items(struct item *this, struct node *parent)
 {
 	struct item *child, *p;
 	struct node *current_node;
 
-	if (this) {
-		create_node(this->tag, parent);
-		/* move to next item, as this points to a ^tag() item */
-		p = container_of((this)->master.next, struct item, master);
-	} else {
-		create_node("__root__", NULL);
-		p = list_first_entry_or_null(&menu.master, struct item, master);
-	}
+	BUG_ON(!this);
+	create_node(this->tag, parent);
+	/* move to next item, as this points to a ^tag() item */
+	p = container_of((this)->master.next, struct item, master);
 	/* p now points to first menu-item under tag "this->tag" */
-
 	if (p == list_last_entry(&menu.master, struct item, master))
-		return;
+		return NULL;
 
 	/* FIXME: Check if node(s.buf) already exists */
 	current_node = list_last_entry(&menu.nodes, struct node, node);
@@ -1045,6 +1044,7 @@ void walk_tagged_items(struct item *this, struct node *parent)
 			break;
 		}
 	}
+	return current_node;
 }
 
 void destroy_node_tree(void)
@@ -1060,16 +1060,30 @@ void destroy_node_tree(void)
 void build_tree(void)
 {
 	struct item *item;
+	struct node *n, *root_node;
 
 	BUG_ON(list_empty(&menu.master));
 	item = list_first_entry_or_null(&menu.master, struct item, master);
-	BUG_ON(item->tag && list_is_singular(&menu.master));
+	BUG_ON(!item->tag);
+	BUG_ON(list_is_singular(&menu.master));
 
-	/* consider case when first item is not a ^tag() item */
-	if (!item->tag)
-		walk_tagged_items(NULL, NULL);
-	else
-		walk_tagged_items(get_item_from_tag(item->tag), NULL);
+	root_node = walk_tagged_items(get_item_from_tag(item->tag), NULL);
+
+	/*
+	 * Add any remaining ^tag()s - i.e. those without a corresponding
+	 * ^checkout(). These are added to the top-level node.
+	 */
+	list_for_each_entry(item, &menu.master, master) {
+		BUG_ON(!item);
+		if (!item->tag)
+			continue;
+		list_for_each_entry(n, &menu.nodes, node)
+			if (n->item == item)
+				goto already_exists;
+		create_node(item->tag, root_node);
+already_exists:
+		;
+	}
 }
 
 /*
@@ -1213,7 +1227,7 @@ void pipemenu_add(const char *s)
 	pipe_head = list_last_entry(&menu.master, struct item, master);
 	read_csv_file(fp);
 	pipe_head = container_of(pipe_head->master.next, struct item, master);
-	if (config.multi_window)
+	if (config.hide_back_items)
 		rm_back_items();
 	/* FIXME: walk_tag_items means 'add new nodes' - consider renaming */
 	parent_node = menu.current_node;
@@ -1222,7 +1236,12 @@ void pipemenu_add(const char *s)
 	pm_push(menu.current_node, parent_node);
 }
 
-void pipemenu_del(struct node *node)
+/**
+ * pipemenu_del_from - remove nodes and menu items associated with pipemenu
+ * @node: delete pipemenu from this point onwards
+ * Note: 'node' needs to be within a pipemenu
+ */
+void pipemenu_del_from(struct node *node)
 {
 	struct item *i, *i_tmp;
 	struct node *n_tmp;
@@ -1240,6 +1259,19 @@ void pipemenu_del(struct node *node)
 	}
 }
 
+void pipemenu_del_beyond(struct node *node)
+{
+	struct node *n, *n_tmp;
+
+	list_for_each_entry_safe_reverse(n, n_tmp, &menu.nodes, node) {
+		if (!pm_first_pipemenu_node())
+			break;
+		if (n == node)
+			break;
+		pipemenu_del_from(n);
+	}
+}
+
 void pipemenu_del_all(void)
 {
 	struct node *n;
@@ -1247,7 +1279,7 @@ void pipemenu_del_all(void)
 	n = (struct node *)pm_first_pipemenu_node();
 	if (!n)
 		return;
-	pipemenu_del(n);
+	pipemenu_del_from(n);
 	pm_cleanup();
 }
 
@@ -1259,7 +1291,12 @@ void checkout_parent(void)
 		return;
 	parent = menu.current_node->parent;
 	if (pm_is_outside(parent))
-		pipemenu_del(menu.current_node);
+		pipemenu_del_from(menu.current_node);
+	/* reverting to parent following ^root() */
+	if (!parent->wid) {
+		parent->wid = menu.current_node->wid;
+		menu.current_node->wid = 0;
+	}
 	checkout_parentmenu(parent->item->tag);
 }
 
@@ -1268,10 +1305,8 @@ static void hide_menu(void)
 	tmr_mouseover_stop();
 	XUngrabKeyboard(ui->dpy, CurrentTime);
 	XUngrabPointer(ui->dpy, CurrentTime);
-	if (config.multi_window) {
-		ui_win_del_beyond(0);
-		geo_set_cur(0);
-	}
+	ui_win_del_beyond(0);
+	geo_set_cur(0);
 	XUnmapWindow(ui->dpy, ui->w[ui->cur].win);
 	filter_reset();
 	checkout_rootnode();
@@ -1336,6 +1371,14 @@ void action_cmd(char *cmd)
 		menu.current_node->last_first = menu.first;
 		pipemenu_add(p);
 		update(1);
+	} else if (!strncmp(cmd, "^root(", 6)) {
+		/* Two nodes with the same wid breaks get_node_from_wid() */
+		menu.current_node->last_sel = menu.sel;
+		menu.current_node->last_first = menu.first;
+		menu.current_node->wid = 0;
+		checkout_tag(cmd + 6);
+		menu.current_node->wid = ui->w[ui->cur].win;
+		update(0);
 	} else {
 		spawn(cmd);
 		hide_or_exit();
@@ -1377,6 +1420,10 @@ void key_event(XKeyEvent *ev)
 		menu.sel = menu.last;
 		init_menuitem_coordinates();
 		draw_menu();
+		break;
+	case XK_Super_L:
+	case XK_Super_R:
+		super_key_pressed = 1;
 		break;
 	case XK_Escape:
 		if (filter_needle_length()) {
@@ -1462,11 +1509,15 @@ void key_event(XKeyEvent *ev)
 		break;
 	case XK_Right:
 		if (!strncmp(menu.sel->cmd, "^checkout(", 10) ||
+		    !strncmp(menu.sel->cmd, "^root(", 6) ||
 		    !strncmp(menu.sel->cmd, "^pipe(", 6))
 			action_cmd(menu.sel->cmd);
 		break;
 	case XK_F5:
 		restart();
+		break;
+	case XK_F8:
+		print_nodes();
 		break;
 	case XK_F9:
 		/* Useful for stopping Makefile during tests/ or examples/ */
@@ -1516,14 +1567,6 @@ void mouse_release(XEvent *e)
 	mouse_coords.y -= MOUSE_FUDGE;
 	ev = &e->xbutton;
 
-	/* right-click */
-	if (ev->button == Button3) {
-		if (!config.multi_window) {
-			checkout_parent();
-			update(1);
-		}
-	}
-
 	/* scroll up */
 	if (ev->button == Button4 && menu.first != filter_head()) {
 		if (ui_has_child_window_open(menu.current_node->wid))
@@ -1552,8 +1595,7 @@ void mouse_release(XEvent *e)
 	if (ev->button == Button1) {
 		if (!menu.sel->selectable)
 			return;
-		if (config.multi_window &&
-		    config.sub_hover_action &&
+		if (config.sub_hover_action &&
 		    (!strncmp(menu.sel->cmd, "^checkout(", 10) ||
 		     !strncmp(menu.sel->cmd, "^pipe(", 6)))
 			return;
@@ -1806,15 +1848,15 @@ void process_pointer_position(XEvent *ev, int force)
 		return;
 	if (e->subwindow == ui->w[ui->cur].win) {
 		move_selection_with_mouse(&pw);
-		if (config.multi_window && config.sub_hover_action)
+		if (config.sub_hover_action)
 			hover();
 	} else if (is_outside_menu_windows(&e)) {
 		tmr_mouseover_stop();
 	} else {
 		/*
-		 * NOTE: When sub window has just opened, we end up here on
-		 * the next event (once). I.e. we re-set the focus on the item
-		 * that triggered the subwindow to open.
+		 * When sub window has just opened, we end up here on
+		 * the next event (once) and re-set the focus on the 'parent'
+		 * window.
 		 */
 		set_focus(e->subwindow);
 		update(1);
@@ -1927,7 +1969,14 @@ void run(void)
 
 				/* mouse over signal */
 				if (ch == 't') {
+					/*
+					 * We are about to open a new submenu
+					 * window, so let's make sure we delete
+					 * any old sub windows and remains of
+					 * pipemenus.
+					 */
 					ui_win_del_beyond(ui->cur);
+					pipemenu_del_beyond(menu.current_node);
 					if (!sw_close_pending)
 						action_cmd(menu.sel->cmd);
 					sw_close_pending = 0;
@@ -2005,6 +2054,14 @@ void run(void)
 				 */
 				if (mouse_outside(&ev))
 					close_pending = 1;
+				break;
+			case KeyRelease:
+				if (super_key_pressed) {
+					super_key_pressed = 0;
+					/* avoid passing super key to WM */
+					usleep(30000);
+					hide_or_exit();
+				}
 				break;
 			case KeyPress:
 				key_event(&ev.xkey);
@@ -2239,7 +2296,7 @@ int main(int argc, char *argv[])
 	read_csv_file(fp);
 	if (fp && fp != stdin)
 		fclose(fp);
-	if (config.multi_window)
+	if (config.hide_back_items)
 		rm_back_items();
 	build_tree();
 

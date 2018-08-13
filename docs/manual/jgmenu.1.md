@@ -1,6 +1,6 @@
 % JGMENU(1)  
 % Johan Malm  
-% 7 June, 2018  
+% 6 July, 2018  
 
 # NAME
 
@@ -13,10 +13,24 @@ jgmenu \[\--no-spawn] \[\--checkout=<*tag*>] \[\--config-file=<*file*>]
        \[\--simple] \[\--vsimple] \[\--csv-file<*file*>]  
        \[\--csv-cmd=<*command*>]  
 
+jgmenu init \[<*options*>]
+
+
+```
+┌────────────────────┬─────────────────────────┐
+│ jgmenu             │ launch menu             │
+├────────────────────┼─────────────────────────┤
+│ jgmenu init        │ create config file      │
+├────────────────────┼─────────────────────────┤
+│ man jgmenututorial │ read step-by-step guide │
+└────────────────────┴─────────────────────────┘
+```
+
+
 # DESCRIPTION
 
 jgmenu is a small menu application for Linux/BSD. It is intended to  
-be used with openbox and tint2, but is not dependent on these.
+be used with openbox and tint2, but is not dependent on these.  
 
 jgmenu reads a list of new-line ('\\n') separated items from a file  
 and creates a menu. Each line is parsed into *description*, *command*  
@@ -45,7 +59,10 @@ The following mark-up is supported in the *command* field:
   - ^tag() - define a submenu (can be in the *description* field if  
   no other field is defined on that line)
 
-  - ^checkout() - check-out a submenu
+  - ^checkout() - open a submenu in a new window
+
+  - ^root() - open a submenu in the root window, replacing the  
+  current menu
 
   - ^sub() - draw a "submenu" arrow
 
@@ -239,6 +256,12 @@ hover_delay = __integer__ (default 100)
     The amount of time (in milliseconds) from hovering over an item  
     until a submenu is opened.  
 
+hide_back_items = __boolean__ (default 1)  
+
+    If enabled, all ^back() items will be suppressed. As a general  
+    rule, it should be set to 1 for a multi-window menu, and 0 when  
+    in single-window mode.  
+
 menu_margin_x = __integer__ (default 0)  
 menu_margin_y = __integer__ (default 0)  
 
@@ -405,6 +428,13 @@ csv_name_format = __string__ (default `%n (%g)`)
         %g - application generic name  
     If a *generic name* does not exist or is the same as the *name*,  
     %n will be used without any formatting.  
+
+csv_single_window = __boolean__ (default 0)  
+
+    If enabled, ^root() will be used instead of ^checkout().  
+    This results in a single window menu, where submenus appear in  
+    the same window.  
+    This is currently only supported by pmenu.  
 
 # SEE ALSO
 

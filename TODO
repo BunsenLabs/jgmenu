@@ -1,13 +1,9 @@
 Cleanliness
 -----------
 
-	Remove reference to ^back()
-
 	Investigate duplicate .desktop entries on Raspberry Pi and nixOS
 
 	Simplify geometry.c by enabling access to config.h variables
-
-	Remove redundant code following removal of multi_window = 0
 
 	jgmenu - warn if strange command line argument is given
 
@@ -38,9 +34,6 @@ Cleanliness
 	Move struct item/node code to data.c.
 		  - Refactor all the checkout_* functions. They're confusing.
 
-	The first item in master list is always a tag-item, so remove old code
-	which handles exceptions
-
 	Refactor around read_csv_file and creating items
 
 	Remove spawn from config (make it args_ instead).
@@ -61,8 +54,6 @@ Cleanliness
 
 Improvements / New features
 ---------------------------
-
-	Add ^root()
 
 	Add ^filter()
 

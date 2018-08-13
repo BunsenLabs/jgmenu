@@ -22,11 +22,11 @@ void config_set_defaults(void)
 	config.csv_cmd		   = xstrdup("pmenu");
 	config.tint2_look	   = 1;
 	config.at_pointer	   = 0;
-	config.multi_window	   = 1;
 	config.terminal_exec	   = xstrdup("x-terminal-emulator");
 	config.terminal_args	   = xstrdup("-e");
 	config.monitor		   = 0;
 	config.hover_delay	   = 100;
+	config.hide_back_items	   = 1;
 
 	config.menu_margin_x	   = 0;
 	config.menu_margin_y	   = 0;
@@ -77,6 +77,7 @@ void config_set_defaults(void)
 	parse_hexstr("#ffffff 20", config.color_sep_fg);
 
 	config.csv_name_format	   = NULL; /* Leave as NULL (see in fmt.c) */
+	config.csv_single_window   = 0;
 }
 
 void config_cleanup(void)
@@ -121,6 +122,8 @@ static void process_line(char *line)
 		xatoi(&config.monitor, value, XATOI_NONNEG, "config.monitor");
 	} else if (!strcmp(option, "hover_delay")) {
 		xatoi(&config.hover_delay, value, XATOI_NONNEG, "config.hover_delay");
+	} else if (!strcmp(option, "hide_back_items")) {
+		xatoi(&config.hide_back_items, value, XATOI_NONNEG, "config.hide_back_items");
 
 	} else if (!strcmp(option, "menu_margin_x")) {
 		xatoi(&config.menu_margin_x, value, XATOI_NONNEG, "config.margin_x");
@@ -252,6 +255,8 @@ static void process_line(char *line)
 	} else if (!strcmp(option, "csv_name_format")) {
 		xfree(config.csv_name_format);
 		config.csv_name_format = xstrdup(value);
+	} else if (!strcmp(option, "csv_single_window")) {
+		xatoi(&config.csv_single_window, value, XATOI_NONNEG, "config.csv_single_window");
 	}
 }
 
@@ -378,4 +383,8 @@ void config_post_process(void)
 
 	if (config.csv_name_format)
 		setenv("JGMENU_NAME_FORMAT", config.csv_name_format, 1);
+	if (config.csv_single_window)
+		setenv("JGMENU_SINGLE_WINDOW", "1", 1);
+	else
+		unsetenv("JGMENU_SINGLE_WINDOW");
 }
