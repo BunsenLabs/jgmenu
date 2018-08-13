@@ -12,11 +12,11 @@ struct config {
 	char *csv_cmd;
 	int tint2_look;
 	int at_pointer;
-	int multi_window;
 	char *terminal_exec;
 	char *terminal_args;
 	int monitor;
 	int hover_delay;
+	int hide_back_items;
 
 	int menu_margin_x;
 	int menu_margin_y;
@@ -66,6 +66,7 @@ struct config {
 	double color_sep_fg[4];
 
 	char *csv_name_format;
+	int csv_single_window;
 };
 
 extern struct config config;
