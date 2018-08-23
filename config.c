@@ -31,6 +31,9 @@ void config_set_defaults(void)
 	config.menu_margin_x	   = 0;
 	config.menu_margin_y	   = 0;
 	config.menu_width	   = 200;
+	config.menu_height_min	   = 0;
+	config.menu_height_max	   = 0;
+	config.menu_height_mode	   = CONFIG_STATIC;
 	config.menu_padding_top	   = 5;
 	config.menu_padding_right  = 5;
 	config.menu_padding_bottom = 5;
@@ -78,6 +81,7 @@ void config_set_defaults(void)
 
 	config.csv_name_format	   = NULL; /* Leave as NULL (see in fmt.c) */
 	config.csv_single_window   = 0;
+	config.csv_no_dirs	   = 0;
 }
 
 void config_cleanup(void)
@@ -131,6 +135,17 @@ static void process_line(char *line)
 		xatoi(&config.menu_margin_y, value, XATOI_NONNEG, "config.margin_y");
 	} else if (!strcmp(option, "menu_width")) {
 		xatoi(&config.menu_width, value, XATOI_GT_0, "config.menu_width");
+	} else if (!strcmp(option, "menu_height_min")) {
+		xatoi(&config.menu_height_min, value, XATOI_NONNEG, "config.menu_height_min");
+	} else if (!strcmp(option, "menu_height_max")) {
+		xatoi(&config.menu_height_max, value, XATOI_NONNEG, "config.menu_height_max");
+	} else if (!strcmp(option, "menu_height_mode")) {
+		if (!value)
+			return;
+		if (!strcasecmp(value, "static"))
+			config.menu_height_mode = CONFIG_STATIC;
+		else if (!strcasecmp(value, "dynamic"))
+			config.menu_height_mode = CONFIG_DYNAMIC;
 	} else if (!strcmp(option, "menu_padding_top")) {
 		xatoi(&config.menu_padding_top, value, XATOI_NONNEG, "config.menu_padding_top");
 	} else if (!strcmp(option, "menu_padding_right")) {
@@ -150,6 +165,8 @@ static void process_line(char *line)
 			config.menu_halign = LEFT;
 		else if (!strcasecmp(value, "right"))
 			config.menu_halign = RIGHT;
+		else if (!strcasecmp(value, "center"))
+			config.menu_halign = CENTER;
 	} else if (!strcmp(option, "menu_valign")) {
 		if (!value)
 			return;
@@ -157,6 +174,8 @@ static void process_line(char *line)
 			config.menu_valign = TOP;
 		else if (!strcasecmp(value, "bottom"))
 			config.menu_valign = BOTTOM;
+		else if (!strcasecmp(value, "center"))
+			config.menu_valign = CENTER;
 
 	} else if (!strcmp(option, "sub_spacing")) {
 		xatoi(&config.sub_spacing, value, 0, "config.sub_spacing");
@@ -257,6 +276,8 @@ static void process_line(char *line)
 		config.csv_name_format = xstrdup(value);
 	} else if (!strcmp(option, "csv_single_window")) {
 		xatoi(&config.csv_single_window, value, XATOI_NONNEG, "config.csv_single_window");
+	} else if (!strcmp(option, "csv_no_dirs")) {
+		xatoi(&config.csv_no_dirs, value, XATOI_NONNEG, "config.csv_no_dirs");
 	}
 }
 
@@ -381,10 +402,18 @@ void config_post_process(void)
 		config.csv_cmd = xstrdup("jgmenu_run ob");
 	}
 
+	if (config.menu_height_max &&
+	    config.menu_height_min > config.menu_height_max)
+		warn("menu_height_min cannot be greater than menu_height_max");
+
 	if (config.csv_name_format)
 		setenv("JGMENU_NAME_FORMAT", config.csv_name_format, 1);
 	if (config.csv_single_window)
 		setenv("JGMENU_SINGLE_WINDOW", "1", 1);
 	else
 		unsetenv("JGMENU_SINGLE_WINDOW");
+	if (config.csv_no_dirs)
+		setenv("JGMENU_NO_DIRS", "1", 1);
+	else
+		unsetenv("JGMENU_NO_DIRS");
 }
