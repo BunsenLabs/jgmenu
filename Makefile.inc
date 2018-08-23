@@ -22,7 +22,7 @@ jgmenu:     CFLAGS  += `pkg-config cairo pango pangocairo librsvg-2.0 --cflags`
 jgmenu-ob:  CFLAGS  += `xml2-config --cflags`
 jgmenu-xdg: CFLAGS  += `xml2-config --cflags`
 
-jgmenu:     LIBS += `pkg-config x11 xinerama cairo pango pangocairo librsvg-2.0 --libs`
+jgmenu:     LIBS += `pkg-config x11 xrandr cairo pango pangocairo librsvg-2.0 --libs`
 jgmenu:     LIBS += -pthread -lrt -lpng
 jgmenu-ob:  LIBS += `xml2-config --libs`
 jgmenu-xdg: LIBS += `xml2-config --libs`
