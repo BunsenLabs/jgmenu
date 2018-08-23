@@ -1,6 +1,6 @@
 % JGMENU(1)  
 % Johan Malm  
-% 6 July, 2018  
+% 20 Aug, 2018  
 
 # NAME
 
@@ -271,20 +271,44 @@ menu_margin_y = __integer__ (default 0)
     See note on `_NET_WORKAREA` under `menu_{v,h}align` variables  
 
 menu_width = __integer__ (default 200)  
+
+    Set the *minimum* menu width. The menu width will adjust to the  
+    longest item in the current (sub)menu. If a filter is applied  
+    (e.g. by the user typing) the menu width will NOT adjust.  
+
+menu_height_min = __integer__ (default 0)  
+menu_height_max = __integer__ (default 0)  
+
+    Set the min and max height of the root menu. If these are set to  
+    the same value, the menu height will be fixed at that value. If  
+    set to zero, they will be ignored.  
+
+menu_height_mode = (static | dynamic) (default static)  
+
+    "static" means that the height of the initial root menu will be  
+    used for any subsequent ^root() action.  
+
+    "dynamic" means that the root menu height will be re-calculated  
+    every time the root menu is redefined using ^root().  
+
 menu_padding_top = __integer__ (default 5)  
 menu_padding_right = __integer__ (default 5)  
 menu_padding_bottom = __integer__ (default 5)  
 menu_padding_left = __integer__ (default 5)  
-menu_radius = __integer__ (default 1)  
-menu_border = __integer__ (default 0)  
 
     "padding" refers to space inside an object (between border and  
     content)  
+
+menu_radius = __integer__ (default 1)  
+
     "radius" refers to the size of rounded corners  
+
+menu_border = __integer__ (default 0)  
+
     "border" refers to the border-thickness  
 
-menu_halign = (left | right) (default left)  
-menu_valign = (top | bottom) (default bottom)  
+menu_halign = (left | right | center) (default left)  
+menu_valign = (top | bottom | center) (default bottom)  
 
     Horizontal and vertical alignment respectively.  
 
@@ -419,6 +443,11 @@ color_sep_fg = __color__ (default #ffffff 20)
 
     Colour of seperator  
 
+## CSV generator variables
+
+The following variables begin with "csv_" which denotes that they set  
+environment variables which are used by the CSV generators.  
+
 csv_name_format = __string__ (default `%n (%g)`)  
 
     Defines the format of the *name* field for CSV generators  
@@ -431,10 +460,15 @@ csv_name_format = __string__ (default `%n (%g)`)
 
 csv_single_window = __boolean__ (default 0)  
 
-    If enabled, ^root() will be used instead of ^checkout().  
+    If set, ^root() will be used instead of ^checkout().  
     This results in a single window menu, where submenus appear in  
     the same window.  
     This is currently only supported by pmenu.  
+
+csv_no_dirs = __boolean__ (default 0)  
+
+    If set, applications will be listed without any directory  
+    structure. This is currently only supported by pmenu and lx.  
 
 # SEE ALSO
 

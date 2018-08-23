@@ -34,10 +34,15 @@
 #include "sbuf.h"
 #include "filter.h"
 #include "icon.h"
+#include "x11-ui.h"
 
 enum widget_type { WIDGET_ERROR, ICON, RECT, TEXT, SEARCH };
 
-LIST_HEAD(widgets);
+static LIST_HEAD(widgets);
+static struct point mouse;
+
+/* indicates if mouse is over any of the widgets */
+static int mouseover;
 
 struct widget {
 	char *buf;
@@ -72,10 +77,8 @@ static enum widget_type parse_type(const char *field)
 
 static void draw_icon(struct widget **w)
 {
-	if (!(*w)->surface) {
-		(*w)->surface = load_cairo_icon((*w)->content);
-		warn("could not find icon '%s'", (*w)->content);
-	}
+	if (!(*w)->surface)
+		(*w)->surface = load_cairo_icon((*w)->content, (*w)->w);
 	if (!(*w)->surface)
 		return;
 	ui_insert_image((*w)->surface, (*w)->x, (*w)->y, (*w)->w);
@@ -103,6 +106,68 @@ static void draw_search(struct widget **w)
 	xfree(t);
 }
 
+static int ismouseover(struct widget **w)
+{
+	struct area a;
+
+	a.x = (*w)->x;
+	a.y = (*w)->y;
+	a.w = (*w)->w;
+	a.h = (*w)->h;
+	return ui_is_point_in_area(mouse, a);
+}
+
+static void draw_selection(struct widget **w)
+{
+	if (!ismouseover(w))
+		return;
+	if (!(*w)->action || (*w)->action[0] == '\0')
+		return;
+	ui_draw_rectangle((*w)->x, (*w)->y, (*w)->w, (*w)->h, (*w)->r,
+			  0.0, 1, config.color_sel_bg);
+	ui_draw_rectangle((*w)->x, (*w)->y, (*w)->w, (*w)->h, (*w)->r,
+			  1.0, 0, config.color_sel_fg);
+}
+
+int widgets_mouseover(void)
+{
+	return mouseover;
+}
+
+void widgets_set_pointer_position(int x, int y)
+{
+	struct widget *w;
+
+	mouseover = 0;
+	mouse.x = x;
+	mouse.y = y;
+
+	list_for_each_entry(w, &widgets, list) {
+		if (ismouseover(&w)) {
+			mouseover = 1;
+			break;
+		}
+	}
+}
+
+/*
+ * widgets_set_point_position() should be run just before calling
+ * this function
+ */
+char *widgets_get_mouseover_action(void)
+{
+	struct widget *w;
+
+	list_for_each_entry(w, &widgets, list) {
+		if (ismouseover(&w)) {
+			if (!w->action || w->action[0] == '\0')
+				continue;
+			return w->action;
+		}
+	}
+	return NULL;
+}
+
 void widgets_draw(void)
 {
 	struct widget *w;
@@ -110,6 +175,7 @@ void widgets_draw(void)
 	if (list_empty(&widgets))
 		return;
 	list_for_each_entry(w, &widgets, list) {
+		draw_selection(&w);
 		if (w->type == ICON)
 			draw_icon(&w);
 		else if (w->type == RECT)
@@ -136,6 +202,7 @@ void widgets_add(const char *s)
 	w->buf = argv_buf.buf;
 	w->type = parse_type(argv_buf.argv[0] + 1);
 	w->action = argv_buf.argv[1];
+	remove_caret_markup_closing_bracket(w->action);
 	xatoi(&w->x, argv_buf.argv[2], XATOI_NONNEG, "w->x");
 	xatoi(&w->y, argv_buf.argv[3], XATOI_NONNEG, "w->y");
 	xatoi(&w->w, argv_buf.argv[4], XATOI_NONNEG, "w->w");

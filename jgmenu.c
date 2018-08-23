@@ -77,6 +77,7 @@ struct node {
 	struct item *item;	   /* item that node points to		  */
 	struct item *last_sel;	   /* used when returning to node	  */
 	struct item *last_first;   /* used when returning to node	  */
+	struct item *expanded;	   /* tracks item with sub window open    */
 	struct node *parent;
 	Window wid;
 	struct list_head node;
@@ -122,7 +123,10 @@ static const char jgmenu_usage[] =
 
 static void checkout_rootnode(void);
 static void pipemenu_del_all(void);
+static void pipemenu_del_beyond(struct node *node);
 static void tmr_mouseover_stop(void);
+static void del_beyond_current(void);
+static void del_beyond_root(void);
 
 void init_empty_item(void)
 {
@@ -168,10 +172,22 @@ void print_nodes(void)
 {
 	struct node *n;
 
+	fprintf(stderr, "nodes: ");
 	list_for_each_entry(n, &menu.nodes, node) {
-		fprintf(stderr, "%d", level(n));
-		fprintf(stderr, "%.5s ", n->item->tag);
+		fprintf(stderr, "%d-", level(n));
+		fprintf(stderr, "%.5s; ", n->item->tag);
 	}
+	fprintf(stderr, "\n");
+}
+
+void print_expanded_nodes(void)
+{
+	struct node *n;
+
+	fprintf(stderr, "expanded nodes: ");
+	list_for_each_entry(n, &menu.nodes, node)
+		if (n->expanded)
+			fprintf(stderr, "%s, ", n->item->tag);
 	fprintf(stderr, "\n");
 }
 
@@ -292,6 +308,8 @@ int isvisible(struct item *item)
 {
 	struct item *p;
 
+	if (!item)
+		return 0;
 	p = menu.first;
 	list_for_each_entry_from(p, &menu.filter, filter) {
 		if (p == item)
@@ -310,10 +328,7 @@ void update_filtered_list(void)
 	INIT_LIST_HEAD(&menu.filter);
 
 	if (filter_needle_length()) {
-		ui_win_del_beyond(0);
-		geo_set_cur(0);
-		checkout_rootnode();
-		pipemenu_del_all();
+		del_beyond_root();
 		list_for_each_entry(item, &menu.master, master) {
 			if (!strncmp("^checkout(", item->cmd, 10) ||
 			    !strncmp("^tag(", item->cmd, 5) ||
@@ -358,6 +373,7 @@ void update_filtered_list(void)
 		menu.sel = menu.first;
 		if (!menu.sel->selectable)
 			menu.sel = next_selectable(menu.first, &isoutside);
+		menu.current_node->last_sel = menu.sel;
 	}
 }
 
@@ -398,19 +414,6 @@ char *parse_caret_action(char *s, char *token)
 	return p;
 }
 
-void remove_caret_markup_closing_bracket(char *s)
-{
-	char *q;
-
-	if (!s)
-		return;
-	if (s[0] == '^') {
-		q = strrchr(s, ')');
-		if (q)
-			*q = '\0';
-	}
-}
-
 void draw_item_sep_without_text(struct item *p)
 {
 	double y;
@@ -439,6 +442,15 @@ void draw_item_sep(struct item *p)
 		draw_item_sep_without_text(p);
 	else
 		draw_item_sep_with_text(p);
+}
+
+void draw_last_sel(struct item *p)
+{
+	if (p == menu.sel)
+		return;
+	ui_draw_rectangle(p->area.x, p->area.y, p->area.w,
+			  p->area.h, config.item_radius, 1,
+			  0, config.color_sel_bg);
 }
 
 void draw_item_bg_norm(struct item *p)
@@ -575,7 +587,7 @@ void draw_menu(void)
 				  config.menu_radius, config.menu_border,
 				  0, config.color_menu_border);
 
-	if (!menu.current_node->parent)
+	if (!ui->cur)
 		widgets_draw();
 
 	/* Draw menu items */
@@ -586,6 +598,8 @@ void draw_menu(void)
 			draw_item_bg_sel(p);
 		else if (p->selectable)
 			draw_item_bg_norm(p);
+		if (p == menu.current_node->last_sel)
+			draw_last_sel(p);
 
 		/* Draw submenu arrow */
 		if (config.arrow_width && (!strncmp(p->cmd, "^checkout(", 10) ||
@@ -765,6 +779,10 @@ void checkout_tag(const char *tag)
 
 void checkout_submenu(char *tag)
 {
+	if (!menu.sel) {
+		info("checkout_submenu(): no menu.sel");
+		return;
+	}
 	if (geo_cur() >= MAX_NR_WINDOWS - 1) {
 		warn("Maximum number of windows reached ('%d')", MAX_NR_WINDOWS);
 		return;
@@ -798,6 +816,7 @@ void checkout_rootmenu(char *tag)
 	set_submenu_width();
 }
 
+/* This checks out the original root menu, regardless of any ^root() action */
 void checkout_rootnode(void)
 {
 	while (menu.current_node->parent)
@@ -1009,6 +1028,7 @@ void create_node(const char *name, struct node *parent)
 	n->item = get_item_from_tag(name);
 	n->last_sel = NULL;
 	n->last_first = NULL;
+	n->expanded = NULL;
 	n->parent = parent;
 	n->wid = 0;
 	list_add_tail(&n->node, &menu.nodes);
@@ -1210,6 +1230,47 @@ void rm_back_items(void)
 		}
 }
 
+int is_ancestor_to_current_node(struct node *node)
+{
+	struct node *n;
+
+	if (!node)
+		return 0;
+	n = menu.current_node;
+	while (n->parent) {
+		n = n->parent;
+		if (n == node)
+			return 1;
+	}
+	return 0;
+}
+
+void recalc_expanded_nodes(void)
+{
+	struct node *n;
+
+	menu.current_node->expanded = NULL;
+	list_for_each_entry(n, &menu.nodes, node)
+		if (!is_ancestor_to_current_node(n))
+			n->expanded = NULL;
+}
+
+/* Delete windows and pipemenus beyond current node */
+void del_beyond_current(void)
+{
+	ui_win_del_beyond(ui->cur);
+	pipemenu_del_beyond(menu.current_node);
+	recalc_expanded_nodes();
+}
+
+void del_beyond_root(void)
+{
+	ui_win_del_beyond(0);
+	geo_set_cur(0);
+	checkout_rootnode();	/* original root node */
+	pipemenu_del_all();
+}
+
 void pipemenu_add(const char *s)
 {
 	FILE *fp = NULL;
@@ -1298,19 +1359,18 @@ void checkout_parent(void)
 		menu.current_node->wid = 0;
 	}
 	checkout_parentmenu(parent->item->tag);
+	if (config.menu_height_mode == CONFIG_DYNAMIC)
+		set_submenu_height();
 }
 
 static void hide_menu(void)
 {
 	tmr_mouseover_stop();
-	XUngrabKeyboard(ui->dpy, CurrentTime);
-	XUngrabPointer(ui->dpy, CurrentTime);
-	ui_win_del_beyond(0);
-	geo_set_cur(0);
+	del_beyond_root();
 	XUnmapWindow(ui->dpy, ui->w[ui->cur].win);
 	filter_reset();
-	checkout_rootnode();
-	pipemenu_del_all();
+	XUngrabKeyboard(ui->dpy, CurrentTime);
+	XUngrabPointer(ui->dpy, CurrentTime);
 	update(1);
 }
 
@@ -1331,7 +1391,7 @@ void action_cmd(char *cmd)
 	if (!config.spawn && strncmp("^checkout(", cmd, 10) &&
 	    strncmp("^sub(", cmd, 5) && strncmp("^back(", cmd, 6) &&
 	    strncmp("^pipe(", cmd, 6)) {
-		printf("%s\n", menu.sel->cmd);
+		printf("%s\n", cmd);
 		exit(0);
 	}
 	if (!strncmp(cmd, "^checkout(", 10)) {
@@ -1378,7 +1438,12 @@ void action_cmd(char *cmd)
 		menu.current_node->wid = 0;
 		checkout_tag(cmd + 6);
 		menu.current_node->wid = ui->w[ui->cur].win;
-		update(0);
+		if (config.menu_height_mode == CONFIG_DYNAMIC) {
+			set_submenu_height();
+			update(1);
+		} else {
+			update(0);
+		}
 	} else {
 		spawn(cmd);
 		hide_or_exit();
@@ -1410,7 +1475,12 @@ void key_event(XKeyEvent *ev)
 	if (status == XBufferOverflow)
 		return;
 	if (ui_has_child_window_open(menu.current_node->wid))
-		ui_win_del_beyond(ui->cur);
+		del_beyond_current();
+
+	/* menu.sel == NULL could be caused by pointer movement */
+	if (!menu.sel)
+		menu.sel = menu.current_node->last_sel;
+
 	switch (ksym) {
 	case XK_End:
 		if (filter_head() == &empty_item)
@@ -1419,6 +1489,7 @@ void key_event(XKeyEvent *ev)
 		menu.first = fill_from_bottom(menu.last);
 		menu.sel = menu.last;
 		init_menuitem_coordinates();
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Super_L:
@@ -1440,6 +1511,7 @@ void key_event(XKeyEvent *ev)
 		menu.last = fill_from_top(menu.first);
 		menu.sel = menu.first;
 		init_menuitem_coordinates();
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Up:
@@ -1452,6 +1524,7 @@ void key_event(XKeyEvent *ev)
 			menu.last = fill_from_top(menu.first);
 		}
 		init_menuitem_coordinates();
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Next:	/* PageDown */
@@ -1467,6 +1540,7 @@ void key_event(XKeyEvent *ev)
 		menu.sel = menu.last;
 		if (!menu.last->selectable)
 			menu.sel = prev_selectable(menu.last, &isoutside);
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Prior:	/* PageUp */
@@ -1482,6 +1556,7 @@ void key_event(XKeyEvent *ev)
 		menu.sel = menu.first;
 		if (!menu.sel->selectable)
 			menu.sel = next_selectable(menu.first, &isoutside);
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Return:
@@ -1499,6 +1574,7 @@ void key_event(XKeyEvent *ev)
 			menu.first = fill_from_bottom(menu.last);
 		}
 		init_menuitem_coordinates();
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Left:
@@ -1515,6 +1591,9 @@ void key_event(XKeyEvent *ev)
 		break;
 	case XK_F5:
 		restart();
+		break;
+	case XK_F7:
+		print_expanded_nodes();
 		break;
 	case XK_F8:
 		print_nodes();
@@ -1569,30 +1648,49 @@ void mouse_release(XEvent *e)
 
 	/* scroll up */
 	if (ev->button == Button4 && menu.first != filter_head()) {
+		if (!menu.sel)
+			menu.sel = menu.current_node->last_sel;
 		if (ui_has_child_window_open(menu.current_node->wid))
-			ui_win_del_beyond(ui->cur);
+			del_beyond_current();
 		step_back(&menu.first, 1);
 		menu.last = fill_from_top(menu.first);
 		step_back(&menu.sel, 1);
 		init_menuitem_coordinates();
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		return;
 	}
 
 	/* scroll down */
 	if (ev->button == Button5 && menu.last != filter_tail()) {
+		if (!menu.sel)
+			menu.sel = menu.current_node->last_sel;
 		if (ui_has_child_window_open(menu.current_node->wid))
-			ui_win_del_beyond(ui->cur);
+			del_beyond_current();
 		step_fwd(&menu.last, 1);
 		menu.first = fill_from_bottom(menu.last);
 		step_fwd(&menu.sel, 1);
 		init_menuitem_coordinates();
+		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		return;
 	}
 
 	/* left-click */
 	if (ev->button == Button1) {
+		char *ret;
+
+		/* widgets */
+		widgets_set_pointer_position(mouse_coords.x, mouse_coords.y);
+		ret = widgets_get_mouseover_action();
+		if (ret && ret[0] != '\0') {
+			action_cmd(ret);
+			return;
+		}
+
+		/* normal menu items */
+		if (!menu.sel)
+			return;
 		if (!menu.sel->selectable)
 			return;
 		if (config.sub_hover_action &&
@@ -1600,7 +1698,7 @@ void mouse_release(XEvent *e)
 		     !strncmp(menu.sel->cmd, "^pipe(", 6)))
 			return;
 		if (ui_has_child_window_open(menu.current_node->wid))
-			ui_win_del_beyond(ui->cur);
+			del_beyond_current();
 		action_cmd(menu.sel->cmd);
 	}
 }
@@ -1698,13 +1796,22 @@ static void move_selection_with_mouse(struct point *mouse_coord)
 		if (ui_is_point_in_area(*mouse_coord, item->area)) {
 			if (menu.sel != item) {
 				menu.sel = item;
+				menu.current_node->last_sel = item;
 				draw_menu();
-				break;
 			}
+			return;
 		}
 		if (item == menu.last)
 			break;
 	}
+	/* if we got this far, the mouse is not over a menu item */
+
+	if (!menu.current_node->expanded && menu.sel) {
+		menu.sel = NULL;
+		draw_menu();
+	}
+	if (widgets_mouseover())
+		draw_menu();
 }
 
 #define TMR_MOUSEOVER_SIG SIGRTMAX
@@ -1776,31 +1883,31 @@ static struct node *get_node_from_wid(Window w)
 	return NULL;
 }
 
-static struct item *subwin_parent_item(Window w)
+void close_sub_window(void)
 {
-	struct node *n;
-	Window child = ui_win_child_wid(w);
-
-	if (!child)
-		return NULL;
-	n = get_node_from_wid(child);
-	BUG_ON(!n);
-	BUG_ON(!n->parent);
-	return n->parent->last_sel;
+	if (!ui_has_child_window_open(menu.current_node->wid))
+		return;
+	sw_close_pending = 1;
+	tmr_mouseover_start();
 }
 
 void hover(void)
 {
-	struct item *open_item;
-
-	/* submenu item */
-	open_item = subwin_parent_item(menu.current_node->wid);
-	if (menu.sel == open_item) {
+	if (widgets_mouseover()) {
+		tmr_mouseover_stop();
+		close_sub_window();
+		return;
+	}
+	/*
+	 * Mouse is over an already "expanded" item (i.e. one that caused a
+	 * sub window to open
+	 */
+	if (menu.sel == menu.current_node->expanded) {
 		tmr_mouseover_stop();
 		return;
 	}
-	if (!strncmp(menu.sel->cmd, "^checkout(", 10) ||
-	    !strncmp(menu.sel->cmd, "^pipe(", 6)) {
+	if (menu.sel && (!strncmp(menu.sel->cmd, "^checkout(", 10) ||
+			 !strncmp(menu.sel->cmd, "^pipe(", 6))) {
 		tmr_mouseover_start();
 		sw_close_pending = 0;
 		return;
@@ -1809,10 +1916,7 @@ void hover(void)
 	/* non-submenu item */
 	if (!sw_close_pending) {
 		tmr_mouseover_stop();
-		if (ui_has_child_window_open(menu.current_node->wid)) {
-			sw_close_pending = 1;
-			tmr_mouseover_start();
-		}
+		close_sub_window();
 	}
 }
 
@@ -1827,6 +1931,26 @@ void set_focus(Window w)
 	checkout_tag(n->item->tag);
 	menu.sel = n->last_sel;
 	menu.current_node = n;
+}
+
+static void adjust_selection_and_redraw(void)
+{
+	if (menu.current_node->expanded) {
+		/*
+		 * When moving the pointer diagonally from a parent to
+		 * a child window, the correct menu.sel needs to be set
+		 * and redrawn in the parent window.
+		 */
+		menu.sel = menu.current_node->expanded;
+		menu.current_node->last_sel = menu.sel;
+	} else {
+		/*
+		 * Don't show selection in submenu if we are not
+		 * actually over the window
+		 */
+		menu.sel = NULL;
+	}
+	draw_menu();
 }
 
 void process_pointer_position(XEvent *ev, int force)
@@ -1846,18 +1970,26 @@ void process_pointer_position(XEvent *ev, int force)
 	pw.y -= MOUSE_FUDGE;
 	if (!force && (pw.x == oldx) && (pw.y == oldy))
 		return;
+
+	widgets_set_pointer_position(pw.x, pw.y);
+
+	/* e->subwindow refers to the window under the pointer */
 	if (e->subwindow == ui->w[ui->cur].win) {
 		move_selection_with_mouse(&pw);
 		if (config.sub_hover_action)
 			hover();
 	} else if (is_outside_menu_windows(&e)) {
+		adjust_selection_and_redraw();
 		tmr_mouseover_stop();
 	} else {
 		/*
-		 * When sub window has just opened, we end up here on
+		 * We end up here whenever we move from one window to another.
+		 *
+		 * When a sub window has just opened, we end up here on
 		 * the next event (once) and re-set the focus on the 'parent'
 		 * window.
 		 */
+		adjust_selection_and_redraw();
 		set_focus(e->subwindow);
 		update(1);
 	}
@@ -1969,16 +2101,13 @@ void run(void)
 
 				/* mouse over signal */
 				if (ch == 't') {
-					/*
-					 * We are about to open a new submenu
-					 * window, so let's make sure we delete
-					 * any old sub windows and remains of
-					 * pipemenus.
-					 */
-					ui_win_del_beyond(ui->cur);
-					pipemenu_del_beyond(menu.current_node);
-					if (!sw_close_pending)
+					BUG_ON(!menu.sel);
+					del_beyond_current();
+					/* open new sub window */
+					if (!sw_close_pending) {
+						menu.current_node->expanded = menu.sel;
 						action_cmd(menu.sel->cmd);
+					}
 					sw_close_pending = 0;
 					process_pointer_position(&ev, 1);
 					continue;
@@ -2210,6 +2339,16 @@ static void cleanup(void)
 	destroy_master_list();
 }
 
+static void keep_menu_height_between_min_and_max(void)
+{
+	if (config.menu_height_min &&
+	    geo_get_menu_height() < config.menu_height_min)
+		geo_set_menu_height(config.menu_height_min);
+	if (config.menu_height_max &&
+	    geo_get_menu_height() > config.menu_height_max)
+		geo_set_menu_height(config.menu_height_max);
+}
+
 int main(int argc, char *argv[])
 {
 	int i;
@@ -2219,7 +2358,7 @@ int main(int argc, char *argv[])
 
 	args_exec_commands(argc, argv);
 	init_locale();
-	restart_init(argv);
+	restart_init(argc, argv);
 	init_sigactions();
 	config_set_defaults();
 
@@ -2305,15 +2444,29 @@ int main(int argc, char *argv[])
 	else
 		checkout_rootmenu(tag_of_first_item());
 
+	keep_menu_height_between_min_and_max();
+
 	grabkeyboard();
 	grabpointer();
 
 	if (config.at_pointer)
 		launch_menu_at_pointer();
 
-	ui_win_init(geo_get_menu_x0(), geo_get_menu_y0(),
-		    geo_get_menu_width(), geo_get_menu_height(),
-		    geo_get_screen_width(), geo_get_screen_height(), font_get());
+	if (config.menu_height_mode == CONFIG_DYNAMIC)
+		/*
+		 * Make canvases the full size of the monitor to allow for
+		 * future changes in menu size on ^root().
+		 */
+		ui_win_init(geo_get_menu_x0(), geo_get_menu_y0(),
+			    geo_get_menu_width(), geo_get_menu_height(),
+			    geo_get_screen_width(), geo_get_screen_height(),
+			    font_get());
+	else
+		/* Make canvas just big enough */
+		ui_win_init(geo_get_menu_x0(), geo_get_menu_y0(),
+			    geo_get_menu_width(), geo_get_menu_height(),
+			    geo_get_menu_width(), geo_get_menu_height(),
+			    font_get());
 
 	init_empty_item();
 	filter_init();

@@ -15,7 +15,7 @@ $(foreach bin,$(REQUIRED_BINS), \
         $(if $(shell type $(bin) 2>/dev/null),, \
                 $(error fatal: could not find '$(bin)')))
 
-REQUIRED_LIBS := x11 xinerama cairo pango pangocairo librsvg-2.0
+REQUIRED_LIBS := x11 xrandr cairo pango pangocairo librsvg-2.0
 $(foreach lib,$(REQUIRED_LIBS), \
         $(if $(shell pkg-config $(lib) && echo 1),, \
                 $(error fatal: could not find library '$(lib)')))
@@ -40,6 +40,7 @@ FRAGMENTS      = noncore/init/jgmenu-init--prepend.sh \
                  noncore/init/jgmenu-init--bunsenlabs.sh \
                  noncore/init/jgmenurc.archlabs_1803 \
                  noncore/init/jgmenurc.bunsenlabs_hydrogen \
+                 noncore/init/jgmenurc.bunsenlabs_helium \
                  noncore/init/jgmenu-init--neon.sh \
                  noncore/init/jgmenurc.neon \
                  noncore/init/tint2rc.neon \
