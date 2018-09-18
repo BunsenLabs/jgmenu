@@ -157,6 +157,16 @@ void version(void)
 	exit(0);
 }
 
+void indent(int number_of_spaces)
+{
+	int i;
+
+	if (number_of_spaces <= 0)
+		return;
+	for (i = 0; i < number_of_spaces; i++)
+		fprintf(stderr, " ");
+}
+
 int level(struct node *n)
 {
 	int i = 0;
@@ -172,23 +182,16 @@ void print_nodes(void)
 {
 	struct node *n;
 
-	fprintf(stderr, "nodes: ");
+	fprintf(stderr, "nodes:\n");
 	list_for_each_entry(n, &menu.nodes, node) {
-		fprintf(stderr, "%d-", level(n));
-		fprintf(stderr, "%.5s; ", n->item->tag);
-	}
-	fprintf(stderr, "\n");
-}
-
-void print_expanded_nodes(void)
-{
-	struct node *n;
-
-	fprintf(stderr, "expanded nodes: ");
-	list_for_each_entry(n, &menu.nodes, node)
+		indent(level(n) * 2);
+		fprintf(stderr, "%.8s ", n->item->tag);
+		if (pm_is_pipe_node(n))
+			fprintf(stderr, "[pipe] ");
 		if (n->expanded)
-			fprintf(stderr, "%s, ", n->item->tag);
-	fprintf(stderr, "\n");
+			fprintf(stderr, "[expanded] ");
+		fprintf(stderr, "\n");
+	}
 }
 
 struct item *filter_head(void)
@@ -220,14 +223,20 @@ void step_fwd(struct item **ptr, int nr)
 struct item *fill_from_top(struct item *first)
 {
 	struct item *p, *last;
-	int h = geo_get_itemarea_height();
+	int col, h;
 
-	h -= config.item_margin_y;
+	h = geo_get_itemarea_height() - config.item_margin_y;
+	col = 1;
 	p = first;
 	last = p;
 	list_for_each_entry_from(p, &menu.filter, filter) {
 		h -= p->area.h + config.item_margin_y;
-		if (h < 0)
+		if (h < 0) {
+			col++;
+			h = geo_get_itemarea_height() - config.item_margin_y;
+			h -= p->area.h + config.item_margin_y;
+		}
+		if (col > config.columns)
 			break;
 		last = p;
 	}
@@ -237,10 +246,11 @@ struct item *fill_from_top(struct item *first)
 struct item *fill_from_bottom(struct item *last)
 {
 	struct item *p, *first;
-	int h = geo_get_itemarea_height();
+	int col, h;
 	int ignoring = 1;
 
-	h -= config.item_margin_y;
+	h = geo_get_itemarea_height() - config.item_margin_y;
+	col = 1;
 	first = last;
 	list_for_each_entry_reverse(p, &menu.filter, filter) {
 		if (p == last)
@@ -248,7 +258,12 @@ struct item *fill_from_bottom(struct item *last)
 		if (ignoring)
 			continue;
 		h -= p->area.h + config.item_margin_y;
-		if (h < 0)
+		if (h < 0) {
+			col++;
+			h = geo_get_itemarea_height() - config.item_margin_y;
+			h -= p->area.h + config.item_margin_y;
+		}
+		if (col > config.columns)
 			break;
 		first = p;
 	}
@@ -425,14 +440,17 @@ void draw_item_sep_without_text(struct item *p)
 
 void draw_item_sep_with_text(struct item *p)
 {
-	int text_x_coord;
+	int text_x_coord, width;
 
 	text_x_coord = p->area.x + config.item_padding_x;
 	if (config.icon_size)
 		text_x_coord += config.icon_size + config.icon_text_spacing;
+	width = p->area.w;
+	if (config.icon_size)
+		width -= config.icon_size + config.icon_text_spacing;
 
 	ui_insert_text(parse_caret_action(p->name, "^sep("), text_x_coord,
-		       p->area.y, p->area.h, p->area.w, config.color_sep_fg,
+		       p->area.y, p->area.h, width, config.color_sep_fg,
 		       config.item_halign);
 }
 
@@ -474,7 +492,7 @@ void draw_item_bg_sel(struct item *p)
 
 void draw_item_text(struct item *p)
 {
-	int text_x_coord;
+	int text_x_coord, width;
 
 	if (config.item_halign != RIGHT) {
 		text_x_coord = p->area.x + config.item_padding_x;
@@ -483,18 +501,18 @@ void draw_item_text(struct item *p)
 					config.icon_text_spacing;
 	} else {
 		text_x_coord = p->area.x - config.item_padding_x;
-		if (config.icon_size)
-			text_x_coord -= config.icon_size +
-					config.icon_text_spacing;
 	}
+	width = p->area.w - config.item_padding_x;
+	if (config.icon_size)
+		width -= config.icon_size + config.icon_text_spacing;
 
 	if (p == menu.sel)
 		ui_insert_text(p->name, text_x_coord, p->area.y,
-			       p->area.h, p->area.w, config.color_sel_fg,
+			       p->area.h, width, config.color_sel_fg,
 			       config.item_halign);
 	else
 		ui_insert_text(p->name, text_x_coord, p->area.y,
-			       p->area.h, p->area.w, config.color_norm_fg,
+			       p->area.h, width, config.color_norm_fg,
 			       config.item_halign);
 }
 
@@ -812,13 +830,14 @@ void checkout_rootmenu(char *tag)
 {
 	checkout_tag(tag);
 	geo_set_cur(0);
-	set_submenu_height();
-	set_submenu_width();
 }
 
 /* This checks out the original root menu, regardless of any ^root() action */
 void checkout_rootnode(void)
 {
+	BUG_ON(!menu.current_node);
+	if (!menu.current_node->parent)
+		return;
 	while (menu.current_node->parent)
 		menu.current_node = menu.current_node->parent;
 	checkout_rootmenu(menu.current_node->item->tag);
@@ -1320,16 +1339,16 @@ void pipemenu_del_from(struct node *node)
 	}
 }
 
-void pipemenu_del_beyond(struct node *node)
+void pipemenu_del_beyond(struct node *keep_me)
 {
 	struct node *n, *n_tmp;
 
 	list_for_each_entry_safe_reverse(n, n_tmp, &menu.nodes, node) {
-		if (!pm_first_pipemenu_node())
+		if (n == keep_me)
 			break;
-		if (n == node)
-			break;
-		pipemenu_del_from(n);
+		/* we can't remove nodes within a pipemenu */
+		if (pm_is_pipe_node(n))
+			pipemenu_del_from(n);
 	}
 }
 
@@ -1351,7 +1370,7 @@ void checkout_parent(void)
 	if (!menu.current_node->parent)
 		return;
 	parent = menu.current_node->parent;
-	if (pm_is_outside(parent))
+	if (pm_is_pipe_node(menu.current_node))
 		pipemenu_del_from(menu.current_node);
 	/* reverting to parent following ^root() */
 	if (!parent->wid) {
@@ -1593,7 +1612,6 @@ void key_event(XKeyEvent *ev)
 		restart();
 		break;
 	case XK_F7:
-		print_expanded_nodes();
 		break;
 	case XK_F8:
 		print_nodes();
@@ -2443,7 +2461,8 @@ int main(int argc, char *argv[])
 		checkout_rootmenu(args_checkout());
 	else
 		checkout_rootmenu(tag_of_first_item());
-
+	set_submenu_height();
+	set_submenu_width();
 	keep_menu_height_between_min_and_max();
 
 	grabkeyboard();

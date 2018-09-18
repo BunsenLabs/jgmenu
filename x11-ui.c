@@ -7,6 +7,12 @@
  *  - dmenu 4.5 (http://tools.suckless.org/dmenu/)
  *  - tint2 (https://gitlab.com/o9000/tint2)
  *  - dzen2 (https://github.com/robm/dzen)
+ *
+ * We try to use X11 terminology, for example:
+ *   - screen  - an area into which graphics can be rendered
+ *   - display - a collection of screens
+ *   - monitor - physical device such as CRT
+ *   - crtc    - CRT controller
  */
 
 #include <stdarg.h>
@@ -456,12 +462,15 @@ void ui_insert_text(char *s, int x, int y, int h, int w, double *rgba,
 
 	offset = (h - ui->font_height_actual) / 2;
 
-	if (align == RIGHT) {
-		pango_layout_set_width(ui->w[ui->cur].pangolayout, w * PANGO_SCALE);
+	pango_layout_set_width(ui->w[ui->cur].pangolayout, w * PANGO_SCALE);
+	if (align == RIGHT)
 		pango_layout_set_alignment(ui->w[ui->cur].pangolayout, PANGO_ALIGN_RIGHT);
-	}
-	pango_layout_set_text(ui->w[ui->cur].pangolayout, s, -1);
+	else
+		pango_layout_set_alignment(ui->w[ui->cur].pangolayout, PANGO_ALIGN_LEFT);
+	pango_layout_set_wrap(ui->w[ui->cur].pangolayout, PANGO_WRAP_WORD_CHAR);
+	pango_layout_set_ellipsize(ui->w[ui->cur].pangolayout, PANGO_ELLIPSIZE_END);
 	pango_layout_set_font_description(ui->w[ui->cur].pangolayout, ui->w[ui->cur].pangofont);
+	pango_layout_set_text(ui->w[ui->cur].pangolayout, s, -1);
 	cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2], rgba[3]);
 	pango_cairo_update_layout(ui->w[ui->cur].c, ui->w[ui->cur].pangolayout);
 	cairo_move_to(ui->w[ui->cur].c, x, y + offset);

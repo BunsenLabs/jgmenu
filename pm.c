@@ -33,14 +33,14 @@ void pm_push(void *pipe_node, void *parent_node)
 	list_add(&pm->list, &pipe_stack);
 }
 
-int pm_is_outside(void *parent_node)
+int pm_is_pipe_node(void *node)
 {
 	struct pm *pm;
 
-	pm = list_first_entry_or_null(&pipe_stack, struct pm, list);
-	if (!pm)
-		return 0;
-	return (parent_node == pm->parent_node);
+	list_for_each_entry(pm, &pipe_stack, list)
+		if (node == pm->pipe_node)
+			return 1;
+	return 0;
 }
 
 void pm_pop(void)

@@ -1,6 +1,6 @@
 % JGMENU(1)  
 % Johan Malm  
-% 20 Aug, 2018  
+% 18 Sep, 2018  
 
 # NAME
 
@@ -11,21 +11,19 @@ jgmenu - A simple X11 menu
 jgmenu \[\--no-spawn] \[\--checkout=<*tag*>] \[\--config-file=<*file*>]  
        \[\--icon-size=<*size*>] \[\--at-pointer] \[\--hide-on-startup]  
        \[\--simple] \[\--vsimple] \[\--csv-file<*file*>]  
-       \[\--csv-cmd=<*command*>]  
+       \[\--csv-cmd=<*command*>] \[\--die-when-loaded]  
 
-jgmenu init \[<*options*>]
+jgmenu init \[\--help | <*options*>]
 
+## Three commands to get started
 
-```
-┌────────────────────┬─────────────────────────┐
-│ jgmenu             │ launch menu             │
-├────────────────────┼─────────────────────────┤
-│ jgmenu init        │ create config file      │
-├────────────────────┼─────────────────────────┤
-│ man jgmenututorial │ read step-by-step guide │
-└────────────────────┴─────────────────────────┘
-```
-
+    ┌────────────────────┬─────────────────────────┐
+    │ jgmenu             │ launch menu             │
+    ├────────────────────┼─────────────────────────┤
+    │ jgmenu init        │ create config file      │
+    ├────────────────────┼─────────────────────────┤
+    │ man jgmenututorial │ read step-by-step guide │
+    └────────────────────┴─────────────────────────┘
 
 # DESCRIPTION
 
@@ -116,14 +114,18 @@ Icons will be displayed if the third field is populated; for example:
 :   specify command to produce menu data  
        E.g. `jgmenu_run pmenu`  
 
+\--die-when-loaded
+:   open menu and then exit(0). This is for debugging and testing.  
+
 # USER INTERFACE
 The user interface is generally pretty intuitive. Here follow mouse  
 and keyboard events which are not so obvious:  
 
   - F5 - restart  
-  - F10 - force quit  
-  - Right-click - return to parent menu (in single window mode)  
-  - Backspace - return to parent menu (in single window mode)  
+  - F8 - print node tree to stderr  
+  - F9 - exit(1)  
+  - F10 - exit(0)  
+  - Backspace - return to parent menu  
 
 # CONFIGURATION FILE
 
@@ -261,6 +263,10 @@ hide_back_items = __boolean__ (default 1)
     If enabled, all ^back() items will be suppressed. As a general  
     rule, it should be set to 1 for a multi-window menu, and 0 when  
     in single-window mode.  
+
+columns = __integer__ (default 1)  
+
+    Specify the number of columns in which to show menu items  
 
 menu_margin_x = __integer__ (default 0)  
 menu_margin_y = __integer__ (default 0)  
@@ -470,11 +476,63 @@ csv_no_dirs = __boolean__ (default 0)
     If set, applications will be listed without any directory  
     structure. This is currently only supported by pmenu and lx.  
 
+# DIAGRAMS
+
+## Vertical
+
+    menu
+    ╔════════════════════════╗  1. menu_padding_top
+    ║            1           ║  2. item_margin_y
+    ╟────────────────────────╢  3. menu_padding_bottom
+    ║            2           ║
+    ╟────────────────────────╢
+    ║          item          ║
+    ╟────────────────────────╢
+    ║            2           ║
+    ╟────────────────────────╢
+    ║          item          ║
+    ╟────────────────────────╢
+    ║            2           ║
+    ╟────────────────────────╢
+    ║            3           ║
+    ╚════════════════════════╝
+
+## Horizontal
+
+    menu
+    ╔═╤═╤════════════════╤═╤═╗  1. item_margin_x
+    ║ │ │                │ │ ║  2. padding_left
+    ║ │ ├────────────────┤ │ ║  3. padding_right
+    ║ │ │ @    web      >│ │ ║  4. icon_size
+    ║ │ ├────────────────┤ │ ║  5. icon_to_text_spacing
+    ║2│1│                │1│3║  6. arrow_width
+    ║ │ ├───┬─┬────────┬─┤ │ ║
+    ║ │ │ 4 │5│        │6│ │ ║
+    ║ │ ├───┴─┴────────┴─┤ │ ║
+    ║ │ │                │ │ ║
+    ║ │ │                │ │ ║
+    ╚═╧═╧════════════════╧═╧═╝
+
+## External to menu
+
+    screen
+    ╔════════════════════════╗  1. menu_margin_x
+    ║    2                   ║  2. menu_margin_y
+    ║ ╭──────┐               ║  3. sub_spacing
+    ║ │ root │ ╭──────┐      ║
+    ║1│ menu │ │ sub  │      ║
+    ║ │      │3│ menu │      ║
+    ║ └──────┘ │      │      ║
+    ║          └──────┘      ║
+    ║                        ║
+    ║                        ║
+    ║                        ║
+    ╚════════════════════════╝
+
 # SEE ALSO
 
 `jgmenu_run(1)`  
 `jgmenututorial(7)`  
-
 
 The jgmenu source code and documentation can be downloaded from  
 <https://github.com/johanmalm/jgmenu/>
