@@ -1,54 +1,51 @@
-jgmenu
-======
+<h3 align="center"><img src="https://i.imgur.com/l8uaBVi.png" alt="jgmenu" height="64px"><br />jgmenu </h3>
+<p align="center">A simple X11 menu</p>
 
-jgmenu is a simple X11 menu intended to be used with tint2 and openbox.
+<p align="center"> <img
+src="https://img.shields.io/github/license/johanmalm/jgmenu.svg" /> <a
+href="https://repology.org/metapackage/jgmenu/versions"><img src="https://repology.org/badge/tiny-repos/jgmenu.svg" /></a> <a
+href="https://repology.org/metapackage/jgmenu/versions"><img src="https://repology.org/badge/latest-versions/jgmenu.svg"></a> </p>
 
-  - [Install](INSTALL.md)  
+<h3 align="center">[<a
+href="INSTALL.md">Install</a>] [<a
+href="docs/manual/jgmenututorial.7.md">Tutorial</a>] [<a
+href="https://github.com/johanmalm/jgmenu/wiki">Wiki</a>] [<a
+href="https://github.com/johanmalm/jgmenu/wiki/Screenshots">Screenshots</a>]</h3>
 
-  - [Tutorial](docs/manual/jgmenututorial.7.md)  
+<img src="https://i.imgur.com/O3E84L3.png" alt="jgmenu" align="right" height="610px" width="512px">
 
-  - [Wiki and Screenshots](https://github.com/johanmalm/jgmenu/wiki)  
+jgmenu is a stand-alone, simple and contemporary-looking menu application for Linux and BSD.
 
-Description and Key Features
-----------------------------
+Although it was originally written to be used with openbox and tint2, it is not in any way dependent on these and runs well with other panels and window managers.
 
-  * jgmenu is a stand-alone, simple and contemporary-looking menu application
-    for Linux and BSD.
+It is hackable with a clean, small code base.
 
-  * Although it was originally written to be used with openbox and tint2,
-    it is not in any way dependent on these and runs well with other panels
-    and window managers.
+It is designed for customisation, scripting, ricing and tweaking
 
-  * It is hackable with a clean, small code base.
+It can optionally use some appearance settings from XSettings, tint2 and GTK.
 
-  * It can display the following types of menu (or any combination of):
+It does not depend on any toolkits such as GTK and Qt, but uses cairo and pango to render the menu directly onto an X11 window.
 
-      - bespoke menu using a jgmenu flavoured CSV format
+It can display the following types of menu (or any combination of):
 
-      - application menu (XDG compatible) with localisation support
+- bespoke menu using a jgmenu flavoured CSV format
 
-      - openbox XML menu including pipe-menus
+- application menu (XDG compatible) with localisation support
 
-  * It can display SVG, PNG and XPM icons.
+- pipe menus
 
-  * It has UTF-8 search support.
+- openbox XML menu including openbox pipe-menus
 
-  * It is highly customizable (e.g. colours, alignment, margins, padding,
-    transparency).
+It can display SVG, PNG and XPM icons.
 
-  * It can synchronise with xsettings, GTK and tint2 settings.
+It has UTF-8 search support.
 
-  * It does not depend on any toolkits such as GTK and Qt, but uses cairo and
-    pango to render the menu directly onto an X11 window.
-
-  * It has been compiled and run on OpenBSD, FreeBSD and various Linux
-    distributions including Bunsenlabs, Arch, Ubuntu, Alpine, Void and Mint.
+It has been compiled and run on OpenBSD, FreeBSD and various Linux distributions including Bunsenlabs, Arch, Ubuntu, Alpine, Void and Mint.
 
 Authors
 -------
 
-Authors who have contributed more than a few of lines of code to at
-least two files in the top-level directory include:
+Authors who have contributed more than a few of lines of code to at least two files in the top-level directory include:
 
 @johanmalm
   - main author
@@ -57,18 +54,19 @@ least two files in the top-level directory include:
   - wrote the pmenu module
   - produced the xsettings client and xpm loader
   - provided much advice on early design choices
-  - provided much technical guidance on icon related code,
-    inter-process communication (IPC), the main loop select() and
-    self-pipe constructs, and more (see git log for full details)
+  - provided much technical guidance on icon related code, inter-process communication (IPC), the main loop select() and self-pipe constructs, and more (see git log for full details)
 
-There many who have contributed in other ways including, but not
-limited to:
+There many who have contributed in other ways including, but not limited to:
 
 Vladimir-csp
-  - has contributed a great deal with suggestions, bug reports and
-    advice on XDG compliance
 
-Various members of the BunsenLabs and ArchLabs communities have also
-helped with testing, documentation, ideas and inspiration to keep this
-project going.
+  - has contributed a great deal with suggestions, bug reports and advice on XDG compliance
+
+Various members of the BunsenLabs and ArchLabs communities have also helped with testing, documentation, ideas and inspiration to keep this project going.
+
+Versioning
+----------
+
+We use [semver 2.0.0](http://www.semver.org), except that at patch-level zero, the ".0" is omitted. For example, 1.0.0 would become 1.0.
+
 
