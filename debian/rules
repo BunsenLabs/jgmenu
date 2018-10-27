@@ -6,6 +6,9 @@
 override_dh_auto_configure:
 	true
 
+override_dh_auto_clean:
+	true
+
 override_dh_auto_build:
 	dh_auto_build
 
