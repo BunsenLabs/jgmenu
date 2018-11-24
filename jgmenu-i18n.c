@@ -17,8 +17,15 @@
 
 static const char jgmenu_i18n_usage[] =
 "Usage: jgmenu_run i18n <translation file>\n"
+"       jgmenu_run i18n --init\n\n"
+"Options:\n"
+"    --init                print missing msgid entries for po file\n\n"
 "Example:\n"
-"jgmenu_run ob | jgmenu_run i18n sv.po | jgmenu --simple\n";
+" 1) jgmenu_run ob | jgmenu_run i18n --init >sv\n"
+" 2) Translate entries in po file.\n"
+" 3) jgmenu_run ob | jgmenu_run i18n sv | jgmenu --simple\n";
+
+static int arg_init;
 
 void usage(void)
 {
@@ -26,19 +33,40 @@ void usage(void)
 	exit(0);
 }
 
+static int is_reserved_word(const char *buf)
+{
+	if (buf[0] == '^')
+		return 1;
+	return 0;
+}
+
+static void create_msgid_if_missing(char *buf)
+{
+	char *p, *translation;
+
+	BUG_ON(!buf);
+	if (buf[0] == '\0')
+		return;
+	if (is_reserved_word(buf))
+		return;
+	p = strchr(buf, ',');
+	if (p)
+		*p = '\0';
+	translation = i18n_translate(buf);
+	if (translation)
+		return;
+	printf("msgid \"%s\"\nmsgstr \"\"\n\n", buf);
+}
+
 static void translate_and_print(char *buf)
 {
 	struct sbuf s;
-	char *remainder;
 
 	BUG_ON(!buf);
 	sbuf_init(&s);
 	sbuf_cpy(&s, buf);
-	remainder = i18n_translate(&s);	
-	printf("%s", s.buf);
-	if (remainder)
-		printf(",%s", remainder);
-	printf("\n");
+	i18n_translate_first_field(&s);
+	printf("%s\n", s.buf);
 	xfree(s.buf);
 }
 
@@ -57,6 +85,8 @@ int main(int argc, char **argv)
 			if (argc > i + 1)
 				die("<file> must be the last argument");
 			break;
+		} else if (!strcmp(argv[i], "--init")) {
+			arg_init = 1;
 		} else if (!strcmp(argv[i], "--help")) {
 			usage();
 		}
@@ -74,7 +104,11 @@ int main(int argc, char **argv)
 			*p = '\0';
 		else
 			die("line %d not correctly terminated", i);
-		translate_and_print(buf);
+		if (arg_init)
+			create_msgid_if_missing(buf);
+		else
+			translate_and_print(buf);
 	}
+	i18n_cleanup();
 	return 0;
 }

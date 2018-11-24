@@ -11,13 +11,16 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "util.h"
 #include "sbuf.h"
 #include "list.h"
 
-static char *root_menu;
-char template[] = "temp_jgmenu_ob_XXXXXX";
+static const char reconfigure_command[] = "openbox --reconfigure";
+static const char restart_command[] = "openbox --restart";
+static const char root_menu_default[] = "root-menu";
+static char *root_menu = (char *)root_menu_default;
 
 struct tag {
 	char *label;
@@ -29,9 +32,11 @@ struct tag {
 
 struct item {
 	char *label;
+	char *icon;
 	char *cmd;
 	int pipe;
 	int checkout;
+	int isseparator;
 	struct list_head list;
 };
 
@@ -46,20 +51,37 @@ static void print_it(struct tag *tag)
 
 	if (list_empty(&tag->items))
 		return;
-	printf("%s,^tag(%s)\n", tag->label, tag->id);
+	if (tag->label)
+		printf("%s,", tag->label);
+	printf("^tag(%s)\n", tag->id);
 	if (tag->parent)
 		printf("Back,^back()\n");
 	list_for_each_entry(item, &tag->items, list) {
 		sbuf_init(&label_escaped);
 		sbuf_cpy(&label_escaped, item->label);
 		sbuf_replace(&label_escaped, "&", "&amp;");
-		if (item->pipe)
+		sbuf_replace_spaces_with_one_tab(&label_escaped);
+		if (item->pipe) {
 			printf("%s,^pipe(jgmenu_run ob --cmd='%s' --tag='%s')\n",
 			       label_escaped.buf, item->cmd, item->label);
-		else if (item->checkout)
-			printf("%s,^checkout(%s)\n", label_escaped.buf, item->cmd);
-		else
-			printf("%s,%s\n", label_escaped.buf, item->cmd);
+		} else if (item->checkout) {
+			printf("%s,^checkout(%s)", label_escaped.buf, item->cmd);
+			if (item->icon)
+				printf(",%s", item->icon);
+			printf("\n");
+		} else if (item->isseparator) {
+			printf("^sep(%s)\n", label_escaped.buf);
+		} else {
+			if (strchr(label_escaped.buf, ','))
+				printf("\"\"\"");
+			printf("%s", label_escaped.buf);
+			if (strchr(label_escaped.buf, ','))
+				printf("\"\"\"");
+			printf(",%s", item->cmd);
+			if (item->icon)
+				printf(",%s", item->icon);
+			printf("\n");
+		}
 		xfree(label_escaped.buf);
 	}
 	printf("\n");
@@ -96,54 +118,43 @@ static struct tag *get_parent_tag(xmlNode *n)
 	char *id = NULL;
 
 	if (!n || !n->parent)
-		goto out;
-
+		return NULL;
 	/* ob pipe-menus don't wrap first level in <menu></menu> */
 	if (!strcmp((char *)n->parent->name, "openbox_pipe_menu"))
-		id = strdup(root_menu);
+		id = xstrdup(root_menu);
 	else
 		id = (char *)xmlGetProp(n->parent, (const xmlChar *)"id");
 	if (!id)
-		goto out;
-	list_for_each_entry(tag, &tags, list)
-		if (tag->id && !strcmp(tag->id, id))
+		return NULL;
+	list_for_each_entry(tag, &tags, list) {
+		if (tag->id && !strcmp(tag->id, id)) {
+			xfree(id);
 			return tag;
-out:
+		}
+	}
+	xfree(id);
 	return NULL;
 }
 
 static void new_tag(xmlNode *n);
 
-static void new_item(xmlNode *n)
+static void new_item(xmlNode *n, int isseparator)
 {
 	struct item *item;
-	char *label = (char *)xmlGetProp(n, (const xmlChar *)"label");
 
 	if (!curtag)
 		new_tag(NULL);
-
 	item = xmalloc(sizeof(struct item));
-	item->label = NULL;
-	if (label)
-		item->label = label;
+	item->label = (char *)xmlGetProp(n, (const xmlChar *)"label");
+	item->icon = (char *)xmlGetProp(n, (const xmlChar *)"icon");
 	item->cmd = NULL;
 	item->pipe = 0;
 	item->checkout = 0;
+	if (isseparator)
+		item->isseparator = 1;
+	else
+		item->isseparator = 0;
 	curitem = item;
-}
-
-static void new_sep(xmlNode *n)
-{
-	struct sbuf s;
-	char *label = (char *)xmlGetProp(n, (const xmlChar *)"label");
-
-	sbuf_init(&s);
-	new_item(n);
-	sbuf_cpy(&s, "^sep(");
-	if (label)
-		sbuf_addstr(&s, label);
-	sbuf_addstr(&s, ")");
-	curitem->label = strdup(s.buf);
 }
 
 static void new_tag(xmlNode *n)
@@ -151,29 +162,35 @@ static void new_tag(xmlNode *n)
 	struct tag *t = xcalloc(1, sizeof(struct tag));
 	struct tag *parent = get_parent_tag(n);
 	char *label = (char *)xmlGetProp(n, (const xmlChar *)"label");
+	char *icon = (char *)xmlGetProp(n, (const xmlChar *)"icon");
 	char *id = (char *)xmlGetProp(n, (const xmlChar *)"id");
 
 	/*
-	 * The pipe-menu "root" has no <menu> element and therefore no LABEL
-	 * or ID.
+	 * The pipe-menu "root" has no <menu> element and therefore no
+	 * LABEL or ID.
 	 */
 	if (id)
-		t->id = id;
+		t->id = xstrdup(id);
 	else
-		t->id = strdup(root_menu);
-	t->label = label;
+		t->id = xstrdup(root_menu);
+	t->label = xstrdup(label);
 	t->parent = parent;
 	INIT_LIST_HEAD(&t->items);
 	list_add_tail(&t->list, &tags);
 	curtag = t;
-
-	if (parent && strcmp(id, root_menu) != 0) {
-		new_item(n);
-		curitem->label = label;
-		curitem->cmd = id;
+	if (parent) {
+		new_item(n, 0);
+		xfree(curitem->label);
+		curitem->label = xstrdup(label);
+		xfree(curitem->icon);
+		curitem->icon = xstrdup(icon);
+		curitem->cmd = xstrdup(id);
 		curitem->checkout = 1;
 		list_add_tail(&curitem->list, &curtag->parent->items);
 	}
+	xmlFree(label);
+	xmlFree(icon);
+	xmlFree(id);
 }
 
 static void revert_to_parent(void)
@@ -218,15 +235,35 @@ static void get_special_action(xmlNode *node, char **cmd)
 
 	action = (char *)xmlGetProp(node, (const xmlChar *)"name");
 	if (!action)
-		return;
+		goto out;
 	if (!strcasecmp(action, "Execute"))
-		return;
+		goto out;
 	if (!strcasecmp(action, "reconfigure"))
-		*cmd = strdup("openbox --reconfigure");
+		*cmd = xstrdup(reconfigure_command);
 	else if (!strcasecmp(action, "restart"))
-		*cmd = strdup("openbox --restart");
+		*cmd = xstrdup(restart_command);
+out:
+	if (action)
+		xmlFree(action);
 }
 
+/*
+ * In an openbox menu xml file, a menu item (such as a program) is written as
+ * follows:
+ *
+ * <item label="foo">
+ *   <action name="Execute">
+ *     <command>foo</command>
+ *   </action>
+ * </item>
+ *
+ * The tag <execute> can be used instead of <command>. The openbox.org wiki
+ * says that the <execute> tag is depreciated, but one of the examples on the
+ * wiki menu page uses <execute> and so does the /etc/xdg/openbox/menu.xml.
+ *
+ * http://openbox.org/wiki/Help:Menus
+ * http://openbox.org/wiki/Help:Actions#Action_syntax
+ */
 static void process_node(xmlNode *node)
 {
 	struct sbuf buf;
@@ -236,14 +273,25 @@ static void process_node(xmlNode *node)
 	sbuf_init(&node_name);
 	get_full_node_name(&node_name, node);
 	if (!node_name.len)
-		return;
+		goto clean;
+	if (!strstr(node_name.buf, "item.action"))
+		goto clean;
 
-	if (strstr(node_name.buf, "item.action.command") && node->content)
-		/* <command></command> */
-		curitem->cmd = strdup(strstrip((char *)node->content));
-	else if (strstr(node_name.buf, "item.action"))
-		/* Catch <action name="Reconfigure"> and <action name="Restart"> */
-		get_special_action(node, &curitem->cmd);
+	if (strstr(node_name.buf, "item.action.execute") ||
+	    strstr(node_name.buf, "item.action.command")) {
+		xmlChar *c = xmlNodeGetContent(node);
+
+		xfree(curitem->cmd);
+		curitem->cmd = c ? xstrdup(strstrip((char *)c)) : NULL;
+		xmlFree(c);
+	}
+
+	/* Catch <action name="Reconfigure"> and <action name="Restart"> */
+	get_special_action(node, &curitem->cmd);
+
+clean:
+	xfree(buf.buf);
+	xfree(node_name.buf);
 }
 
 /*
@@ -255,10 +303,10 @@ static void process_node(xmlNode *node)
  */
 static int menu_start(xmlNode *n)
 {
-	int ret = 0;
+	int has_parent = 0;
 	char *label;
 	char *execute;
-	char *id = NULL;
+	char *id;
 
 	label = (char *)xmlGetProp(n, (const xmlChar *)"label");
 	execute = (char *)xmlGetProp(n, (const xmlChar *)"execute");
@@ -267,46 +315,49 @@ static int menu_start(xmlNode *n)
 	if (label && !execute) {
 		/* new ^tag() */
 		new_tag(n);
-		ret = 1;
+		has_parent = 1;
 	} else if (execute) {
 		/* pipe-menu */
-		new_item(n);
+		new_item(n, 0);
 		curitem->pipe = 1;
-		curitem->cmd = execute;
+		curitem->cmd = xstrdup(execute);
 		list_add_tail(&curitem->list, &curtag->items);
 	} else if (id) {
 		/* checkout a menu defined elsewhere */
-		new_item(n);
+		new_item(n, 0);
 		curitem->checkout = 1;
-		curitem->cmd = id;
-		curitem->label = get_tag_label(id);
+		curitem->cmd = xstrdup(id);
+		xfree(curitem->label);
+		curitem->label = xstrdup(get_tag_label(id));
 		list_add_tail(&curitem->list, &curtag->items);
 	}
-
-	return ret;
+	xfree(label);
+	xfree(execute);
+	xfree(id);
+	return has_parent;
 }
 
 static void xml_tree_walk(xmlNode *node)
 {
 	xmlNode *n;
-	int ret;
+	int has_parent;
 
 	for (n = node; n && n->name; n = n->next) {
 		if (!strcasecmp((char *)n->name, "menu")) {
-			ret = menu_start(n);
+			has_parent = menu_start(n);
 			xml_tree_walk(n->children);
-			if (ret)
+			if (has_parent)
 				revert_to_parent();
 			continue;
 		}
 		if (!strcasecmp((char *)n->name, "item")) {
-			new_item(n);
+			new_item(n, 0);
 			list_add_tail(&curitem->list, &curtag->items);
 			xml_tree_walk(n->children);
 			continue;
 		}
 		if (!strcasecmp((char *)n->name, "separator")) {
-			new_sep(n);
+			new_item(n, 1);
 			list_add_tail(&curitem->list, &curtag->items);
 			xml_tree_walk(n->children);
 			continue;
@@ -319,69 +370,45 @@ static void xml_tree_walk(xmlNode *node)
 	}
 }
 
-static void parse_xml(const char *filename)
+static void parse_xml(struct sbuf *xmlbuf)
 {
-	xmlDoc *d = xmlReadFile(filename, NULL, 0);
+	xmlDoc *d;
 
+	d = xmlParseMemory(xmlbuf->buf, strlen(xmlbuf->buf));
 	if (!d)
 		exit(1);
 	xml_tree_walk(xmlDocGetRootElement(d));
+	print_menu();
 	xmlFreeDoc(d);
 	xmlCleanupParser();
 }
 
-void read_command(const char *cmd, char *template)
-{
-	char buf[BUFSIZ];
-	int link[2];
-	int fd;
-	ssize_t cnt;
-	char *pwd;
-
-	if (pipe(link) == -1)
-		die("pipe");
-
-	pwd = strdup(getenv("PWD"));
-	chdir("/tmp");
-	fd = mkstemp(template);
-	if (fd < 0)
-		die("unable to create tempfile");
-	switch (fork()) {
-	case -1:
-		die("fork");
-		break;
-	case 0:
-		if (close(link[0] == -1))
-			warn("close 1");
-		if (dup2(link[1], STDOUT_FILENO) == -1)
-			die("dup2");
-		chdir(pwd);
-		execl("/bin/sh", "/bin/sh", "-c", cmd, NULL);
-		break;
-	default:
-		break;
-	}
-	if (close(link[1]) == -1)
-		warn("close 3");
-	while ((cnt = read(link[0], buf, sizeof(buf))) > 0) {
-		if (write(fd, buf, cnt) != cnt)
-			warn("bad write to temp file '%s'", template);
-	}
-	if (close(link[0]) == -1)
-		warn("close 4");
-	if (wait(NULL) == -1)
-		warn("wait");
-	xfree(pwd);
-}
-
-static void unlink_temp_file(void)
-{
-	unlink(template);
-}
-
 static void cleanup(void)
 {
-	xfree(root_menu);
+	struct tag *tag, *tag_tmp;
+	struct item *item, *i_tmp;
+
+	list_for_each_entry(tag, &tags, list) {
+		list_for_each_entry(item, &tag->items, list) {
+			xfree(item->label);
+			xfree(item->icon);
+			xfree(item->cmd);
+		}
+	}
+	list_for_each_entry(tag, &tags, list) {
+		xfree(tag->id);
+		xfree(tag->label);
+	}
+	list_for_each_entry(tag, &tags, list) {
+		list_for_each_entry_safe(item, i_tmp, &tag->items, list) {
+			list_del(&item->list);
+			xfree(item);
+		}
+	}
+	list_for_each_entry_safe(tag, tag_tmp, &tags, list) {
+		list_del(&tag->list);
+		xfree(tag);
+	}
 }
 
 void handle_argument_clash(void)
@@ -391,10 +418,11 @@ void handle_argument_clash(void)
 
 int main(int argc, char **argv)
 {
-	char *filename = NULL;
 	int i;
 	struct sbuf default_file;
-	struct stat sb;
+	FILE *fp = NULL;
+	struct sbuf xmlbuf;
+	char buf[BUFSIZ], *p;
 
 	atexit(cleanup);
 	LIBXML_TEST_VERSION
@@ -402,39 +430,42 @@ int main(int argc, char **argv)
 	i = 1;
 	while (i < argc) {
 		if (argv[i][0] != '-') {
-			if (filename)
-				handle_argument_clash();
-			filename = xstrdup(argv[i]);
 			if (argc > i + 1)
 				die("<file> must be the last argument");
-			break;
-		} else if (!strncmp(argv[i], "--tag=", 6)) {
-			root_menu = strdup(argv[i] + 6);
-		} else if (!strncmp(argv[i], "--cmd=", 6)) {
-			if (filename)
+			if (fp)
 				handle_argument_clash();
-			read_command(argv[i] + 6, template);
-			atexit(unlink_temp_file);
-			filename = xstrdup(template);
+			fp = fopen(argv[i], "r");
+			if (!fp)
+				die("ob: cannot open file '%s'", argv[i]);
+		} else if (!strncmp(argv[i], "--tag=", 6)) {
+			root_menu = argv[i] + 6;
+		} else if (!strncmp(argv[i], "--cmd=", 6)) {
+			fp = popen(argv[i] + 6, "r");
+			if (!fp)
+				die("ob: cannot run command '%s'", argv[i] + 6);
 		}
 		i++;
 	}
-	if (!root_menu)
-		root_menu = strdup("root-menu");
-	if (!filename) {
+	if (!fp) {
 		sbuf_init(&default_file);
 		sbuf_cpy(&default_file, getenv("HOME"));
 		sbuf_addstr(&default_file, "/.config/openbox/menu.xml");
-		filename = strdup(default_file.buf);
+		fp = fopen(default_file.buf, "r");
 		xfree(default_file.buf);
 	}
-	if (stat(filename, &sb))
-		die("file '%s' does not exist", filename);
+	if (!fp)
+		die("ob: cannot open openbox menu file");
 	INIT_LIST_HEAD(&tags);
-	parse_xml(filename);
-
-	print_menu();
-	xfree(filename);
+	sbuf_init(&xmlbuf);
+	for (i = 0; fgets(buf, sizeof(buf), fp); i++) {
+		buf[BUFSIZ - 1] = '\0';
+		p = strrchr(buf, '\n');
+		if (p)
+			*p = '\0';
+		sbuf_addstr(&xmlbuf, buf);
+	}
+	parse_xml(&xmlbuf);
+	xfree(xmlbuf.buf);
 
 	return 0;
 }

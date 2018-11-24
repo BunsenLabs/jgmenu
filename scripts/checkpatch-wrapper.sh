@@ -64,6 +64,7 @@ do
 			-e 'CamelCase.*PangoFontDescription' \
 			-e 'CamelCase.*PangoLayout' \
 			-e 'CamelCase.*PangoLayoutLine' \
+			-e 'CamelCase.*PangoTabArray' \
 			-e 'CamelCase.*PangoRectangle' \
 			-e 'CamelCase.*Pixmap' \
 			-e 'CamelCase.*PointerMotionMask' \
@@ -117,8 +118,10 @@ do
 			-e 'CamelCase.*xmlCleanupParser' \
 			-e 'CamelCase.*xmlDoc' \
 			-e 'CamelCase.*xmlDocGetRootElement' \
+			-e 'CamelCase.*xmlFree' \
 			-e 'CamelCase.*xmlFreeDoc' \
 			-e 'CamelCase.*xmlNode' \
+			-e 'CamelCase.*xmlParseMemory' \
 			-e 'CamelCase.*xmlReadFile' \
 			-e 'CamelCase.*xmlGetProp' \
 			-e 'CamelCase.*XMotionEvent' \

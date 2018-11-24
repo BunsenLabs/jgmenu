@@ -1,10 +1,16 @@
 #!/bin/sh
 
+if ! test -e ./helper/filter-out
+then
+	echo "fatal: need ./helper/filter-out"
+	exit 1
+fi
+
 test_description='test jgmenu-config.py amend'
 . ./test-lib-simple.sh
 
 filter_out () {
-	awk "NR!=$1 && NR!=$2 && NR!=$3" ../noncore/config/jgmenurc >actual
+	cat ../noncore/config/jgmenurc | ./helper/filter-out "$@" >actual
 }
 
 test_config_amend() {
