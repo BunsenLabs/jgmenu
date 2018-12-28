@@ -1,4 +1,4 @@
-jgmenu (1.6-1) UNRELEASED; urgency=medium
+jgmenu (1.6+bl8-1) jessie-backports; urgency=medium
 
   * New upstream release
 
