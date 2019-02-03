@@ -1,13 +1,11 @@
 *.o
 *.a
 jgmenu
-jgmenu-xdg
-jgmenu-icon-find
-jgmenu-xsettings
 jgmenu-ob
 jgmenu-lx
 jgmenu-socket
 jgmenu-i18n
+jgmenu-greeneye
 README.html
 config.mk
 valgrind.log
