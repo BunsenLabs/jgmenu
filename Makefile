@@ -31,9 +31,7 @@ DEPDIR := .d
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
 
-SCRIPTS_SHELL  = jgmenu_run noncore/init/jgmenu-init.sh \
-                 noncore/places/jgmenu-places.sh \
-                 noncore/bookmarks/jgmenu-ff-bookmarks.sh
+SCRIPTS_SHELL  = src/jgmenu_run noncore/init/jgmenu-init.sh
 
 FRAGMENTS      = noncore/init/jgmenu-init--prepend.sh \
                  noncore/init/jgmenu-init--append.sh \
@@ -43,13 +41,12 @@ FRAGMENTS      = noncore/init/jgmenu-init--prepend.sh \
                  noncore/init/jgmenurc.bunsenlabs_helium \
                  noncore/init/jgmenu-init--neon.sh \
                  noncore/init/jgmenurc.neon \
-                 noncore/init/tint2rc.neon \
                  noncore/config/jgmenurc
 
-SCRIPTS_PYTHON = jgmenu-pmenu.py jgmenu-unity-hack.py \
+SCRIPTS_PYTHON = src/jgmenu-pmenu.py src/jgmenu-unity-hack.py \
                  noncore/config/jgmenu-config.py
 
-PROGS	 = jgmenu jgmenu-xdg jgmenu-ob jgmenu-socket jgmenu-i18n
+PROGS	 = jgmenu jgmenu-ob jgmenu-socket jgmenu-i18n jgmenu-greeneye
 
 # wrap in ifneq to ensure we respect user defined NO_LX=1
 ifneq ($(NO_LX),1)
@@ -59,14 +56,14 @@ ifneq ($(NO_LX),1)
 PROGS += jgmenu-lx
 endif
 
-objects = $(patsubst ./%.c,%.o,$(shell find . -maxdepth 1 -name '*.c' -print))
-mains = $(patsubst %,%.o,$(PROGS))
+objects = $(patsubst ./src/%.c,%.o,$(shell find ./src -maxdepth 1 -name '*.c' -print))
+mains = $(patsubst src/%,%.o,$(PROGS))
 ifneq ($(NO_LX),1)
 OBJS = $(filter-out $(mains),$(objects))
 else
 OBJS = $(filter-out $(mains) jgmenu-lx.o,$(objects))
 endif
-SRCS = $(patsubst %.o,%.c,$(OBJS))
+SRCS = $(patsubst %.o,src/%.c,$(OBJS))
 JGMENU_LIB = libjgmenu.a
 
 all: $(PROGS)
@@ -77,20 +74,19 @@ jgmenu: jgmenu.o x11-ui.o config.o util.o geometry.o isprog.o sbuf.o \
 	t2env.o unix_sockets.o bl.o cache.o back.o terminal.o restart.o \
 	theme.o gtkconf.o font.o args.o widgets.o pm.o socket.o workarea.o \
 	charset.o watch.o spawn.o
-jgmenu-xdg: jgmenu-xdg.o util.o sbuf.o xdgdirs.o xdgapps.o argv-buf.o \
-	charset.o
 jgmenu-ob: jgmenu-ob.o util.o sbuf.o i18n.o hashmap.o
 jgmenu-socket: jgmenu-socket.o util.o sbuf.o unix_sockets.o socket.o
 ifneq ($(NO_LX),1)
 jgmenu-lx: jgmenu-lx.o util.o sbuf.o xdgdirs.o argv-buf.o back.o fmt.o
 endif
 jgmenu-i18n: jgmenu-i18n.o i18n.o hashmap.o util.o sbuf.o
+jgmenu-greeneye: jgmenu-greeneye.o
 
 $(PROGS):
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-%.o : %.c
-%.o : %.c $(DEPDIR)/%.d
+%.o : src/%.c
+%.o : src/%.c $(DEPDIR)/%.d
 	$(QUIET_CC)$(CC) $(DEPFLAGS) $(CFLAGS) -c $<
 	@mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d && touch $@
 
@@ -99,7 +95,7 @@ $(DEPDIR)/%.d: ;
 
 install: $(PROGS)
 	@install -d $(DESTDIR)$(bindir)
-	@install -m755 jgmenu jgmenu_run $(DESTDIR)$(bindir)
+	@install -m755 jgmenu src/jgmenu_run $(DESTDIR)$(bindir)
 	@install -d $(DESTDIR)$(libexecdir)
 	@install -m755 $(PROGS) $(SCRIPTS_SHELL) $(DESTDIR)$(libexecdir)
 	@install -m755 $(SCRIPTS_PYTHON) $(DESTDIR)$(libexecdir)
@@ -159,8 +155,8 @@ ex:
 	@$(MAKE) --no-print-directory -C examples/ all
 
 check:
-	@./scripts/checkpatch-wrapper.sh *.c
-	@./scripts/checkpatch-wrapper.sh *.h
+	@./scripts/checkpatch-wrapper.sh src/*.c
+	@./scripts/checkpatch-wrapper.sh src/*.h
 
 print-%:
 	@echo '$*=$($*)'

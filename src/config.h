@@ -73,10 +73,12 @@ struct config {
 	double color_sel_fg[4];
 	double color_sel_border[4];
 	double color_sep_fg[4];
+	double color_scroll_ind[4];
 
 	char *csv_name_format;
 	int csv_single_window;
 	int csv_no_dirs;
+	char *csv_i18n;
 };
 
 extern struct config config;

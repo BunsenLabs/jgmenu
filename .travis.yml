@@ -19,3 +19,11 @@ addons:
       - libmenu-cache-dev
 
 script: make && make test
+
+env:
+  global:
+    - CODECOV_TOKEN="786edde0-bf90-4e6b-9299-cc3f18033616"
+    - CFLAGS=-coverage
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

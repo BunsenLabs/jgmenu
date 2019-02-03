@@ -1,6 +1,6 @@
 % JGMENU(1)  
 % Johan Malm  
-% 22 Oct, 2018  
+% 25 Jan, 2019  
 
 # NAME
 
@@ -16,7 +16,7 @@ jgmenu \[\--no-spawn] \[\--checkout=<*tag*>] \[\--config-file=<*file*>]
 
 jgmenu init \[\--help | <*options*>]
 
-## Three commands to get started
+## Use these three commands to get started
 
     ┌────────────────────┬─────────────────────────┐
     │ jgmenu             │ launch menu             │
@@ -32,11 +32,18 @@ jgmenu is a small menu application for Linux/BSD. It is intended to
 be used with openbox and tint2, but is not dependent on these.  
 
 jgmenu reads a list of new-line ('\\n') separated items from a file  
-and creates a menu. Each line is parsed into *description*, *command*  
-and *icon*, using comma as a field separator. Empty lines and lines  
-beginning with '#' are ignored. When the user selects an item (by  
-left-clicking or pressing enter), the `command` of their selection  
-is executed as a new process.  
+and creates a menu. Each line is parsed into the following fields  
+using comma as a field separator:  
+
+  (1) *description*  
+  (2) *command*  
+  (3) *icon*,  
+  (4) *working directory*  
+  (5) *metadata*  
+
+Empty lines and lines beginning with '#' are ignored. When the user  
+selects an item by left-clicking or pressing enter), the `command`  
+of their selection is executed as a new process.  
 
 For example:
 
@@ -49,11 +56,16 @@ For example:
 
     foo,"""^pipe(find . -printf '%f,display %p,%p\n')"""
 
-The following mark-up is supported in the *description* field:
+## Markup
+
+The syntax ^foo(bar) is used to carry out action "foo" with argument  
+"bar".
+
+The following markup is supported in the *description* field:
 
   - ^sep() - define a separator (with or without text)
 
-The following mark-up is supported in the *command* field:
+The following markup is supported in the *command* field:
 
   - ^tag() - define a submenu (can be in the *description* field if  
   no other field is defined on that line)
@@ -72,7 +84,11 @@ The following mark-up is supported in the *command* field:
   - ^pipe() - execute sub-process and checkout a menu based on its  
   stdout.
 
-Icons will be displayed if the third field is populated; for example:
+  - ^filter() - invoke search  
+
+## Icons
+
+Icons will be displayed if the third field is populated; for example:  
 
     Terminal,xterm,utilities-terminal
     Firefox,firefox,firefox
@@ -123,14 +139,21 @@ Icons will be displayed if the third field is populated; for example:
        Also set `tint2_look=0` to disable alignment to tint2 panel  
 
 # USER INTERFACE
-The user interface is generally pretty intuitive. Here follow mouse  
-and keyboard events which are not so obvious:  
 
+  - Up/Down - select previous/next item  
+  - Left/Right - move to parent/sub menu  
+  - PgUp/PgDn - scroll up/down by one menu's worth of items  
+  - Home/End - select first/last item  
+  - Enter - select an item or open a submenu  
   - F5 - restart  
   - F8 - print node tree to stderr  
   - F9 - exit(1)  
   - F10 - exit(0)  
   - Backspace - return to parent menu  
+
+Type any string to invoke a search. Words separated by space will  
+be searched for using OR logic (i.e. the match of either word is  
+sufficient to display an item).  
 
 # CONFIGURATION FILE
 
@@ -219,13 +242,13 @@ hide_on_startup = __boolean__ (default 0)
 csv_cmd = __string__ (default `pmenu`)  
 
     Defines the command to produce the jgmenu flavoured CSV for  
-    `jgmenu`. Accpetable keyword include pmenu, xdg, lx and ob.  
+    `jgmenu`. Accpetable keyword include pmenu, lx and ob.  
     If a value is given other than these keywords, it will be  
     executed in a shell (so be careful!). If left blank, jgmenu  
     will read from __stdin__. Examples:  
 
-    csv_cmd = xdg
-    csv_cmd = jgmenu_run xdg --no-dirs  
+    csv_cmd = lx
+    csv_cmd = jgmenu_run lx --no-dirs  
     csv_cmd = cat ~/mymenu.csv  
 
 tint2_look = __boolean__ (default 1)  
@@ -408,7 +431,8 @@ font = __string__ (unset by default)
 
 font_fallback = __string__ (default xtg)  
 
-    The same as 'icon_theme_fallback' (see below)  
+    The same as 'icon_theme_fallback' (see below), except that  
+    the xsettings variable 'Gtk/FontName' is read.  
 
 icon_size = __integer__ (default 22)  
 
@@ -421,12 +445,7 @@ icon_text_spacing = __integer__ (default 10)
 
 icon_theme = __string__ (unset by default)  
 
-    If an xsettings-daemon is running, the icon theme will be  
-    obtained from that daemon. Otherwise, the variable above will be  
-    read.
-
-    The behaviour described above can be over-ruled by defining the  
-    following two:
+    Specify icon theme.  
 
 icon_theme_fallback = __string__ (default xtg)  
 
@@ -435,7 +454,7 @@ icon_theme_fallback = __string__ (default xtg)
     with the highest precedence. The following are acceptable  
     characters:  
 
-    x = xsettings  
+    x = xsettings 'Net/IconThemeName'  
     t = tint2 config file  
     g = gtk3.0 config file  
 
@@ -480,6 +499,11 @@ color_sep_fg = __color__ (default #ffffff 20)
 
     Colour of seperator  
 
+color_scroll_ind = __color__ (default #eeeeee 40)  
+
+    Colour of scroll indicator lines (which show if there are menu  
+    items above or below those which are visible).  
+
 ## CSV generator variables
 
 The following variables begin with "csv_" which denotes that they set  
@@ -506,6 +530,12 @@ csv_no_dirs = __boolean__ (default 0)
 
     If set, applications will be listed without any directory  
     structure. This is currently only supported by pmenu and lx.  
+
+csv_i18n = __string__ (no default)  
+
+    If set, the ob module will look for a translation file in the  
+    specified file or directory. See `jgmenu_run i18n --help` for  
+    further details.  
 
 # DIAGRAMS
 
@@ -567,3 +597,4 @@ csv_no_dirs = __boolean__ (default 0)
 
 The jgmenu source code and documentation can be downloaded from  
 <https://github.com/johanmalm/jgmenu/>
+

@@ -3,11 +3,13 @@
 
 <p align="center"> <img
 src="https://img.shields.io/github/license/johanmalm/jgmenu.svg" /> <a
+href="https://www.codacy.com/app/johanmalm/jgmenu?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=johanmalm/jgmenu&amp;utm_campaign=Badge_Grade"><img src="https://api.codacy.com/project/badge/Grade/a154619f17924fcd8ec2be8f338da063" /></a> <br /> <a
 href="https://repology.org/metapackage/jgmenu/versions"><img src="https://repology.org/badge/tiny-repos/jgmenu.svg" /></a> <a
 href="https://repology.org/metapackage/jgmenu/versions"><img src="https://repology.org/badge/latest-versions/jgmenu.svg"></a> </p>
 
 <h3 align="center">[<a
 href="INSTALL.md">Install</a>] [<a
+href="https://github.com/johanmalm/jgmenu/tree/master/docs/relnotes">Release&nbsp;Notes</a>] [<a
 href="docs/manual/jgmenututorial.7.md">Tutorial</a>] [<a
 href="https://github.com/johanmalm/jgmenu/wiki">Wiki</a>] [<a
 href="https://github.com/johanmalm/jgmenu/wiki/Screenshots">Screenshots</a>]</h3>
@@ -60,7 +62,7 @@ There many who have contributed in other ways including, but not limited to:
 
 Vladimir-csp
 
-  - has contributed a great deal with suggestions, bug reports and advice on XDG compliance
+  - has contributed a great deal with bug reports, advice on XDG compliance and many helpful suggestions
 
 Various members of the BunsenLabs and ArchLabs communities have also helped with testing, documentation, ideas and inspiration to keep this project going.
 
