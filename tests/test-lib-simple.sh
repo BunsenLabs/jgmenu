@@ -1,3 +1,4 @@
+#!/bin/sh
 #
 # Hughly simplified version of git's test-lib.sh
 # Included to test hashmap.c
@@ -35,7 +36,7 @@ die () {
 }
 
 say () {
-	echo "* $*"
+	echo "$*"
 }
 
 test_cmp() {
@@ -44,7 +45,7 @@ test_cmp() {
 
 test_ok_ () {
 	: $(( test_count = test_count + 1 ))
-	say "    ok ${test_count}: $@"
+	say "ok ${test_count}: $@"
 }
 
 test_failure_ () {

@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "compat.h"
+#include "sbuf.h"
+#include "util.h"
+
 static int ah = 40;
 static int bw = 150;
 static int cw = 300;
@@ -55,7 +59,7 @@ static void print_categories(void)
 
 	y = pad;
 	for (i = 0; categories[i]; i++) {
-		strncpy(buf, categories[i], sizeof(buf));
+		strlcpy(buf, categories[i], sizeof(buf));
 		buf[1023] = '\0';
 		p = strchr(buf, ':');
 		if (p)
@@ -69,20 +73,27 @@ static void print_categories(void)
 	}
 }
 
+#define SEARCH_ICON "~/.config/jgmenu/greeneye-search.svg"
 static void output_widgets(void)
 {
+	struct sbuf s;
+
+	sbuf_init(&s);
+	sbuf_addstr(&s, SEARCH_ICON);
+	sbuf_expand_tilde(&s);
 	/* Search box */
 	printf("@rect,,%d,%d,%d,%d,2,left,top,#000000 0,#656565 50,\n",
 	       bw + pad, pad, cw - pad * 2, ah - pad);
 	printf("@search,,%d,%d,%d,%d,2,left,top,#eeeeee 80,#000000 0,\n",
 	       bw + pad + 5, pad, cw - pad * 2, ah - pad);
-	printf("@icon,,%d,%d,22,22,2,left,top,#000000 50,#000000 50,/usr/share/icons/breeze-dark/actions/22/system-search.svg\n",
-	       bw + cw - pad - 30, pad + 8);
+	printf("@icon,,%d,%d,22,22,2,left,top,#000000 50,#000000 50,%s\n",
+	       bw + cw - pad - 30, pad + 8, s.buf);
 
 	/* Grey area for menus items */
 	printf("@rect,,%d,%d,%d,%d,2,left,top,#000000 0,#282828 90,\n",
 	       bw + pad, ah + pad, cw - pad * 2, ch - pad * 2);
 
+	xfree(s.buf);
 	print_categories();
 }
 

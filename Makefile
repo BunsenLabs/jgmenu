@@ -3,70 +3,76 @@
 #
 # Define VERBOSE=1 for a more verbose compilation
 #
-# Define PYTHON3_POLYGLOT=1 if '#!/usr/bin/env python3' is not going to work
-# on your system.
-#
 # Define NO_LX=1 if you do not want to build jgmenu-lx (which requires
 # libmenu-cache >=v1.1)
 #
-
-REQUIRED_BINS := pkg-config $(CC) xml2-config
-$(foreach bin,$(REQUIRED_BINS), \
-        $(if $(shell type $(bin) 2>/dev/null),, \
-                $(error fatal: could not find '$(bin)')))
-
-REQUIRED_LIBS := x11 xrandr cairo pango pangocairo librsvg-2.0
-$(foreach lib,$(REQUIRED_LIBS), \
-        $(if $(shell pkg-config $(lib) && echo 1),, \
-                $(error fatal: could not find library '$(lib)')))
 
 VER      = $(shell ./scripts/version-gen.sh)
 
 # Allow user to override build settings without making tree dirty
 -include config.mk
 
-include ./Makefile.inc
+RM       = rm -f
+
+prefix    ?= /usr/local
+bindir     = $(prefix)/bin
+libexecdir = $(prefix)/lib/jgmenu
+
+ifeq ($(prefix),$(HOME))
+datarootdir= $(prefix)/.local/share
+else
+datarootdir= $(prefix)/share
+endif
+
+CFLAGS  += -g -Wall -Os -std=gnu89
+CFLAGS  += -Wextra -Wdeclaration-after-statement -Wno-format-zero-length \
+	   -Wold-style-definition -Woverflow -Wpointer-arith \
+	   -Wstrict-prototypes -Wunused -Wvla -Wunused-result
+CFLAGS  += -Wno-unused-parameter
+CFLAGS  += -DVERSION='"$(VER)"'
+
+jgmenu:     CFLAGS  += `pkg-config cairo pango pangocairo librsvg-2.0 --cflags`
+jgmenu-ob:  CFLAGS  += `xml2-config --cflags`
+jgmenu-lx:  CFLAGS  += `pkg-config --cflags glib-2.0 libmenu-cache`
+
+jgmenu:     LIBS += `pkg-config x11 xrandr cairo pango pangocairo librsvg-2.0 --libs`
+jgmenu:     LIBS += -pthread -lpng
+jgmenu-ob:  LIBS += `xml2-config --libs`
+jgmenu-lx:  LIBS += `pkg-config --libs glib-2.0 libmenu-cache`
+
+LDFLAGS += $(LIBS)
+
+ifdef ASAN
+ASAN_FLAGS = -O0 -fsanitize=address -fno-common -fno-omit-frame-pointer -rdynamic
+CFLAGS    += $(ASAN_FLAGS)
+LDFLAGS   += $(ASAN_FLAGS) -fuse-ld=gold
+endif
+
+ifndef VERBOSE
+QUIET_CC   = @echo '     CC    '$@;
+QUIET_LINK = @echo '     LINK  '$@;
+endif
 
 DEPDIR := .d
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
 
-SCRIPTS_SHELL  = src/jgmenu_run noncore/init/jgmenu-init.sh
+SCRIPTS_LIBEXEC = src/jgmenu-init.sh src/jgmenu-pmenu.py \
+                  src/jgmenu-unity-hack.py src/jgmenu-config.py
 
-FRAGMENTS      = noncore/init/jgmenu-init--prepend.sh \
-                 noncore/init/jgmenu-init--append.sh \
-                 noncore/init/jgmenu-init--bunsenlabs.sh \
-                 noncore/init/jgmenurc.archlabs_1803 \
-                 noncore/init/jgmenurc.bunsenlabs_hydrogen \
-                 noncore/init/jgmenurc.bunsenlabs_helium \
-                 noncore/init/jgmenu-init--neon.sh \
-                 noncore/init/jgmenurc.neon \
-                 noncore/config/jgmenurc
-
-SCRIPTS_PYTHON = src/jgmenu-pmenu.py src/jgmenu-unity-hack.py \
-                 noncore/config/jgmenu-config.py
-
-PROGS	 = jgmenu jgmenu-ob jgmenu-socket jgmenu-i18n jgmenu-greeneye
+PROGS_LIBEXEC   = jgmenu-ob jgmenu-socket jgmenu-i18n jgmenu-greeneye
 
 # wrap in ifneq to ensure we respect user defined NO_LX=1
 ifneq ($(NO_LX),1)
 NO_LX := $(shell pkg-config "libmenu-cache >= 1.1.0" "glib-2.0" || echo "1")
 endif
 ifneq ($(NO_LX),1)
-PROGS += jgmenu-lx
+PROGS_LIBEXEC += jgmenu-lx
 endif
 
-objects = $(patsubst ./src/%.c,%.o,$(shell find ./src -maxdepth 1 -name '*.c' -print))
-mains = $(patsubst src/%,%.o,$(PROGS))
-ifneq ($(NO_LX),1)
-OBJS = $(filter-out $(mains),$(objects))
-else
-OBJS = $(filter-out $(mains) jgmenu-lx.o,$(objects))
-endif
-SRCS = $(patsubst %.o,src/%.c,$(OBJS))
-JGMENU_LIB = libjgmenu.a
+PROGS           = jgmenu $(PROGS_LIBEXEC)
 
-all: $(PROGS)
+all: checkdeps $(PROGS)
 
 jgmenu: jgmenu.o x11-ui.o config.o util.o geometry.o isprog.o sbuf.o \
 	icon-find.o icon.o xpm-loader.o xdgdirs.o xsettings.o \
@@ -80,7 +86,7 @@ ifneq ($(NO_LX),1)
 jgmenu-lx: jgmenu-lx.o util.o sbuf.o xdgdirs.o argv-buf.o back.o fmt.o
 endif
 jgmenu-i18n: jgmenu-i18n.o i18n.o hashmap.o util.o sbuf.o
-jgmenu-greeneye: jgmenu-greeneye.o
+jgmenu-greeneye: jgmenu-greeneye.o compat.o util.o sbuf.o
 
 $(PROGS):
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -93,21 +99,12 @@ $(PROGS):
 $(DEPDIR)/%.d: ;
 .PRECIOUS: $(DEPDIR)/%.d
 
-install: $(PROGS)
+install: checkdeps $(PROGS)
 	@install -d $(DESTDIR)$(bindir)
 	@install -m755 jgmenu src/jgmenu_run $(DESTDIR)$(bindir)
 	@install -d $(DESTDIR)$(libexecdir)
-	@install -m755 $(PROGS) $(SCRIPTS_SHELL) $(DESTDIR)$(libexecdir)
-	@install -m755 $(SCRIPTS_PYTHON) $(DESTDIR)$(libexecdir)
-	@install -m644 $(FRAGMENTS) $(DESTDIR)$(libexecdir)
+	@install -m755 $(PROGS_LIBEXEC) $(SCRIPTS_LIBEXEC) $(DESTDIR)$(libexecdir)
 	@./scripts/set-exec-path.sh $(DESTDIR)$(bindir)/jgmenu_run $(libexecdir)
-	@./scripts/set-exec-path.sh $(DESTDIR)$(libexecdir)/jgmenu_run $(libexecdir)
-ifdef PYTHON3_POLYGLOT
-	@./scripts/python3-polyglot.sh $(DESTDIR)$(libexecdir) $(notdir $(SCRIPTS_PYTHON))
-else
-	@type python3 >/dev/null 2>&1 || printf "%s\n" "warning: python3 not \
-	found. Suggest defining PYTHON3_POLYGLOT"
-endif
 	@$(MAKE) --no-print-directory -C docs/manual/ prefix=$(prefix) install
 	@install -d $(DESTDIR)$(datarootdir)/icons/hicolor/scalable/apps/
 	@install -d $(DESTDIR)$(datarootdir)/applications/
@@ -139,15 +136,12 @@ endif
 	@-rmdir ~/.local/share/icons 2>/dev/null || true
 
 clean:
-	@$(RM) $(PROGS) *.o *.a $(DEPDIR)/*.d
+	@$(RM) $(PROGS) *.o *.a $(DEPDIR)/*.d checkdeps
 	@$(RM) -r .d/
 	@$(MAKE) --no-print-directory -C tests/ clean
 	@$(MAKE) --no-print-directory -C tests/helper/ clean
 
-test: $(OBJS)
-	@$(RM) $(JGMENU_LIB)
-	@$(MAKE) --no-print-directory -C tests/helper/ clean
-	@echo '     AR    libjgmenu.a';$(AR) rcs $(JGMENU_LIB) $(OBJS)
+test:
 	@$(MAKE) --no-print-directory -C tests/helper/ all
 	@$(MAKE) --no-print-directory -C tests/ all
 
@@ -158,7 +152,20 @@ check:
 	@./scripts/checkpatch-wrapper.sh src/*.c
 	@./scripts/checkpatch-wrapper.sh src/*.h
 
+REQUIRED_BINS := pkg-config xml2-config
+REQUIRED_LIBS := x11 xrandr cairo pango pangocairo librsvg-2.0
+checkdeps:
+	@echo '     CHECK build dependencies'
+	@for b in $(REQUIRED_BINS); do \
+                type $${b} >/dev/null 2>&1 || echo "warn: require ($${b})"; \
+        done
+	@for l in $(REQUIRED_LIBS); do \
+                pkg-config $${l} || echo "fatal: require ($${l})"; \
+        done
+	@touch checkdeps
+
 print-%:
 	@echo '$*=$($*)'
 
+SRCS = $(patsubst ./%,%,$(shell find ./src -maxdepth 1 -name '*.c' -print))
 include $(wildcard $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS))))
