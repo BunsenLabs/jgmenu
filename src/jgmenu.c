@@ -27,7 +27,6 @@
 #include "config.h"
 #include "util.h"
 #include "geometry.h"
-#include "isprog.h"
 #include "sbuf.h"
 #include "icon.h"
 #include "filter.h"
@@ -54,6 +53,7 @@
 static pthread_t thread;	   /* worker thread for loading icons	  */
 static int pipe_fds[2];		   /* talk between threads + catch sig    */
 static int sw_close_pending;
+static int menu_is_hidden;
 static int super_key_pressed;
 
 struct item {
@@ -353,7 +353,8 @@ void update_filtered_list(void)
 			if (!strncmp("^checkout(", item->cmd, 10) ||
 			    !strncmp("^tag(", item->cmd, 5) ||
 			    !strncmp("^pipe(", item->cmd, 6) ||
-			    !strncmp("^back(", item->cmd, 6))
+			    !strncmp("^back(", item->cmd, 6) ||
+			    !strncmp("^sep(", item->cmd, 5))
 				continue;
 			if (filter_ismatch(item->name) ||
 			    filter_ismatch(item->cmd) ||
@@ -775,14 +776,25 @@ struct item *get_item_from_tag(const char *tag)
 	return NULL;
 }
 
+static char *tag_of_first_item(void)
+{
+	struct item *item;
+
+	item = list_first_entry_or_null(&menu.master, struct item, master);
+	if (!item)
+		die("no items in master list");
+	return item->tag;
+}
+
 void find_subhead(const char *tag)
 {
 	BUG_ON(!tag);
-	if (!tag_exists(tag)) {
+	if (tag_exists(tag)) {
+		menu.current_node = get_node_from_tag(tag);
+	} else {
 		warn("tag '%s' does not exist", tag);
-		return;
+		menu.current_node = get_node_from_tag(tag_of_first_item());
 	}
-	menu.current_node = get_node_from_tag(tag);
 	if (!menu.current_node)
 		die("node '%s' does not exist", tag);
 	menu.subhead = container_of((menu.current_node->item)->master.next,
@@ -791,7 +803,7 @@ void find_subhead(const char *tag)
 		die("no menu.subhead");
 }
 
-void find_subtail(const char *tag)
+void find_subtail(void)
 {
 	struct item *item;
 
@@ -808,7 +820,7 @@ void checkout_tag(const char *tag)
 {
 	filter_reset();
 	find_subhead(tag);
-	find_subtail(tag);
+	find_subtail();
 }
 
 void checkout_submenu(char *tag)
@@ -888,6 +900,8 @@ void launch_menu_at_pointer(void)
 	geo_update_monitor_coords();
 	XQueryPointer(ui->dpy, DefaultRootWindow(ui->dpy), &dw, &dw, &di, &di,
 		      &pos.x, &pos.y, &du);
+	if (pos.x < config.edge_snap_x)
+		pos.x = 0;
 
 	/* We use config.menu_{v,h}align to tell us where the panel is */
 	if (config.menu_valign == TOP)
@@ -1024,6 +1038,7 @@ static void if_unity_run_hack(void)
 
 static void awake_menu(void)
 {
+	menu_is_hidden = 0;
 	if_unity_run_hack();
 	if (watch_files_have_changed())
 		restart();
@@ -1070,20 +1085,21 @@ void create_node(const char *name, struct node *parent)
 }
 
 /* Create nodal tree from tagged items */
-struct node *walk_tagged_items(struct item *this, struct node *parent)
+struct node *node_add_new(struct item *this, struct node *parent)
 {
 	struct item *child, *p;
 	struct node *current_node;
 
 	BUG_ON(!this);
+	if (node_exists(this->tag)) {
+		warn("node not added as tag (%s) already exists");
+		return NULL;
+	}
 	create_node(this->tag, parent);
 	/* move to next item, as this points to a ^tag() item */
 	p = container_of((this)->master.next, struct item, master);
 	/* p now points to first menu-item under tag "this->tag" */
-	if (p == list_last_entry(&menu.master, struct item, master))
-		return NULL;
 
-	/* FIXME: Check if node(s.buf) already exists */
 	current_node = list_last_entry(&menu.nodes, struct node, node);
 
 	/* walk the items under current node and put into tree structure */
@@ -1094,7 +1110,7 @@ struct node *walk_tagged_items(struct item *this, struct node *parent)
 				continue;
 			if (child->tag && node_exists(child->tag))
 				continue;
-			walk_tagged_items(child, current_node);
+			node_add_new(child, current_node);
 		} else if (!strncmp("^tag(", p->cmd, 5)) {
 			break;
 		}
@@ -1122,7 +1138,7 @@ void build_tree(void)
 	BUG_ON(!item->tag);
 	BUG_ON(list_is_singular(&menu.master));
 
-	root_node = walk_tagged_items(get_item_from_tag(item->tag), NULL);
+	root_node = node_add_new(get_item_from_tag(item->tag), NULL);
 
 	/*
 	 * Add any remaining ^tag()s - i.e. those without a corresponding
@@ -1197,7 +1213,13 @@ void resolve_newline(char *s)
 	*(p + 1) = '\n';
 }
 
-void read_csv_file(FILE *fp)
+/**
+ * read_csv_file - read lines from FILE to "master" list
+ * @fp: file to be read
+ *
+ * Return number of lines read
+ */
+int read_csv_file(FILE *fp)
 {
 	char buf[BUFSIZ], *p;
 	size_t i;
@@ -1267,8 +1289,7 @@ void read_csv_file(FILE *fp)
 		list_add_tail(&item->master, &menu.master);
 	}
 
-	if (!item || i <= 0)
-		die("input file contains no menu items");
+	return i;
 }
 
 void rm_back_items(void)
@@ -1324,11 +1345,41 @@ void del_beyond_root(void)
 	pipemenu_del_all();
 }
 
+static int check_pipe_tags_unique(struct item *from)
+{
+	struct item *p;
+
+	p = from;
+	list_for_each_entry_from(p, &menu.master, master) {
+		BUG_ON(!p);
+		if (!p->tag)
+			continue;
+		if (node_exists(p->tag)) {
+			info("tag (%s) already exists", p->tag);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+void destroy_master_list_from(struct item *from)
+{
+	struct item *i, *i_tmp;
+
+	i = from;
+	list_for_each_entry_safe_from(i, i_tmp, &menu.master, master) {
+		xfree(i->buf);
+		list_del(&i->master);
+		xfree(i);
+	}
+}
+
 void pipemenu_add(const char *s)
 {
 	FILE *fp = NULL;
 	struct item *pipe_head;
 	struct node *parent_node;
+	int nr_lines;
 
 	BUG_ON(!s);
 	fp = popen(s, "r");
@@ -1337,15 +1388,27 @@ void pipemenu_add(const char *s)
 		return;
 	}
 
-	/* FIXME: how do we handle pipemenu without tag? */
 	pipe_head = list_last_entry(&menu.master, struct item, master);
-	read_csv_file(fp);
+	nr_lines = read_csv_file(fp);
+	if (fp && fp != stdin)
+		fclose(fp);
+	if (!nr_lines) {
+		warn("empty pipemenu");
+		return;
+	}
 	pipe_head = container_of(pipe_head->master.next, struct item, master);
+	/* pipe_head now points to first item of pipe */
+
+	if (check_pipe_tags_unique(pipe_head) < 0) {
+		destroy_master_list_from(pipe_head);
+		info("pipe menu removed");
+		return;
+	}
+
 	if (config.hide_back_items)
 		rm_back_items();
-	/* FIXME: walk_tag_items means 'add new nodes' - consider renaming */
 	parent_node = menu.current_node;
-	walk_tagged_items(pipe_head, parent_node);
+	node_add_new(pipe_head, parent_node);
 	checkout_submenu(pipe_head->tag);
 	pm_push(menu.current_node, parent_node);
 }
@@ -1357,16 +1420,10 @@ void pipemenu_add(const char *s)
  */
 void pipemenu_del_from(struct node *node)
 {
-	struct item *i, *i_tmp;
 	struct node *n_tmp;
 
 	pm_pop();
-	i = node->item;
-	list_for_each_entry_safe_from(i, i_tmp, &menu.master, master) {
-		xfree(i->buf);
-		list_del(&i->master);
-		xfree(i);
-	}
+	destroy_master_list_from(node->item);
 	list_for_each_entry_safe_from(node, n_tmp, &menu.nodes, node) {
 		list_del(&node->node);
 		xfree(node);
@@ -1416,6 +1473,23 @@ void checkout_parent(void)
 		set_submenu_height();
 }
 
+static void clear_self_pipe(void)
+{
+	fd_set readfds;
+
+	if (!FD_ISSET(pipe_fds[0], &readfds))
+		return;
+	for (;;) {
+		char ch;
+
+		if (read(pipe_fds[0], &ch, 1) == -1) {
+			if (errno == EAGAIN)
+				break;
+			warn("error reading pipe");
+		}
+	}
+}
+
 static void hide_menu(void)
 {
 	tmr_mouseover_stop();
@@ -1427,6 +1501,8 @@ static void hide_menu(void)
 	menu.current_node->expanded = NULL;
 	menu.sel = NULL;
 	update(1);
+	clear_self_pipe();
+	menu_is_hidden = 1;
 }
 
 void hide_or_exit(void)
@@ -1504,6 +1580,7 @@ void action_cmd(char *cmd, const char *working_dir)
 		if (!p)
 			return;
 		filter_reset();
+		filter_set_clear_on_keyboard_input(1);
 		filter_addstr(p, strlen(p));
 		update(1);
 	} else {
@@ -1677,6 +1754,8 @@ void key_event(XKeyEvent *ev)
 		}
 		break;
 	default:
+		if (filter_get_clear_on_keyboard_input())
+			filter_reset();
 		filter_addstr(buf, len);
 		update(0);
 		break;
@@ -2062,7 +2141,6 @@ void run(void)
 	XEvent ev;
 	struct item *item;
 
-	char ch;
 	int ready, nfds, x11_fd;
 	fd_set readfds;
 	static int all_icons_have_been_requested;
@@ -2137,6 +2215,8 @@ void run(void)
 		 */
 		if (FD_ISSET(pipe_fds[0], &readfds) && ready) {
 			for (;;) {
+				char ch;
+
 				if (read(pipe_fds[0], &ch, 1) == -1) {
 					if (errno == EAGAIN)
 						break;
@@ -2154,7 +2234,7 @@ void run(void)
 					BUG_ON(!menu.sel);
 					del_beyond_current();
 					/* open new sub window */
-					if (!sw_close_pending) {
+					if (!sw_close_pending && !menu_is_hidden) {
 						menu.current_node->expanded = menu.sel;
 						action_cmd(menu.sel->cmd,
 							   menu.sel->working_dir);
@@ -2239,7 +2319,7 @@ void run(void)
 				if (super_key_pressed) {
 					super_key_pressed = 0;
 					/* avoid passing super key to WM */
-					usleep(30000);
+					msleep(30);
 					hide_or_exit();
 				}
 				break;
@@ -2302,16 +2382,6 @@ void set_theme(void)
 	icon_set_size(config.icon_size);
 	info("set icon theme to '%s'", theme.buf);
 	icon_set_theme(theme.buf);
-}
-
-static char *tag_of_first_item(void)
-{
-	struct item *item;
-
-	item = list_first_entry_or_null(&menu.master, struct item, master);
-	if (!item)
-		die("no items in master list");
-	return item->tag;
 }
 
 static void quit(int signum)
@@ -2384,7 +2454,6 @@ static void cleanup(void)
 		icon_cleanup();
 	widgets_cleanup();
 	watch_cleanup();
-
 	delete_empty_item();
 	destroy_node_tree();
 	destroy_master_list();

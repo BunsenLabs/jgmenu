@@ -1,4 +1,6 @@
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "util.h"
 #include "sbuf.h"
@@ -187,6 +189,7 @@ int get_first_num_from_str(const char *s)
 
 static void xatoi_warn(const char *msg, const char *val, const char *key)
 {
+	BUG_ON(!msg || !val || !key);
 	fprintf(stderr, "warning: %s; value='%s'; key='%s'\n", msg, val, key);
 }
 
@@ -286,3 +289,13 @@ void mkdir_p(const char *path)
 	}
 }
 
+void msleep(unsigned int duration)
+{
+	struct timespec ts;
+	unsigned int sec = duration / 1000;
+	unsigned int msec = duration % 1000;
+
+	ts.tv_sec  = sec;
+	ts.tv_nsec =  msec * 1000000;
+	nanosleep(&ts, NULL);
+}

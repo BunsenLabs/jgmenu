@@ -28,6 +28,8 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#include "util.h"
+
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
@@ -54,11 +56,6 @@ struct file_handle {
 	FILE *infile;
 	char *buffer;
 	uint buffer_size;
-};
-
-struct mem_handle {
-	const char **data;
-	int offset;
 };
 
 /* The following 2 routines (parse_color, find_color) come from Tk, via the Win32
@@ -164,7 +161,8 @@ static int find_color(const char *name, struct xpm_color *color_ptr)
 static int parse_color(const char *spec, struct xpm_color *color_ptr)
 {
 	if (spec[0] == '#') {
-		int i, red, green, blue;
+		int i;
+		unsigned int red, green, blue;
 
 		i = strlen(spec + 1);
 		if (i % 3)
@@ -273,7 +271,7 @@ static int xpm_read_string(FILE *infile, char **buffer, uint *buffer_size)
 			else
 				goto out;
 
-			buf = (char *)realloc(buf, bufsiz);
+			buf = (char *)xrealloc(buf, bufsiz);
 			buf[bufsiz - 1] = '\0';
 		}
 
