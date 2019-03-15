@@ -218,6 +218,7 @@ append__exit () {
 }
 
 append_items () {
+	backup_config_files
 	append__sep
 	append__lock
 	append__exit
@@ -307,6 +308,7 @@ prepend__add_file_manager () {
 }
 
 prepend_items () {
+	backup_config_files
 	prepend__add_terminal
 	prepend__add_browser
 	prepend__add_file_manager
@@ -318,8 +320,6 @@ check_config_file () {
 	then
 		say "info: creating config file 'jgmenurc'"
 		jgmenu_run config create --file "${config_file}"
-	else
-		jgmenu_run config amend --file "${config_file}" --dryrun
 	fi
 }
 
@@ -410,6 +410,7 @@ get_theme () {
 	print_available_themes | jgmenu --vsimple --center --no-spawn 2>/dev/null
 }
 
+# not currently used
 restart_jgmenu () {
 	say "Restarting jgmenu..."
 	killall jgmenu >/dev/null 2>&1
@@ -485,8 +486,6 @@ EOF
 }
 
 neon__setup_theme () {
-	rm -f ${prepend_file}
-	rm -f ${append_file}
 	if ! test -d "/usr/share/icons/breeze"
 	then
 		warn "warn: icon theme 'breeze' is required to complete this theme"
@@ -501,42 +500,42 @@ bunsenlabs__setup_theme () {
 	# not all systems support openbox menus
 	if ! test -e ~/.config/openbox/menu.xml
 	then
-		echo "set csv_cmd=pmenu"
-		#TODO: jgmenu_run config set csv_cmd pmenu
+		printf "\n%s\n" "csv_cmd = pmenu" >"${config_file}"
 	fi
 }
 
 set_theme () {
 	test $# -eq 0 && die "set_theme(): no theme specified"
+	backup_config_files
 	rm -f "${prepend_file}" "${append_file}"
 
 	case "$1" in
 	archlabs_1803)
 		jgmenurc_archlabs_1803
-		restart_jgmenu
 		;;
 	bunsenlabs_hydrogen)
 		jgmenurc_bunsenlabs_hydrogen
 		bunsenlabs__setup_theme
-		restart_jgmenu
 		;;
 	bunsenlabs_helium)
 		jgmenurc_bunsenlabs_helium
 		bunsenlabs__setup_theme
-		restart_jgmenu
 		;;
 	neon)
 		jgmenurc_neon
 		neon__setup_theme
-		restart_jgmenu
 		;;
 	greeneye)
 		create_icon_greeneye
 		jgmenu_run greeneye --widgets >"${prepend_file}"
 		jgmenu_run greeneye --config >"${config_file}"
-		restart_jgmenu
 		;;
 	esac
+}
+
+apply_obtheme () {
+	backup_config_files
+	jgmenu_run obtheme "${config_file}" >>"${config_file}"
 }
 
 check_nr_backups () {
@@ -545,7 +544,7 @@ check_nr_backups () {
 you have more than 100 backup files - consider removing a few"
 }
 
-backup_jgmenurc () {
+backup_config_files () {
 	local files_to_backup="${HOME}/.config/jgmenu/jgmenurc \
 		${HOME}/.config/jgmenu/prepend.csv \
 		${HOME}/.config/jgmenu/append.csv"
@@ -589,11 +588,14 @@ initial_checks () {
 print_commands () {
 	printf "%b" "\
 *** commands ***\n\
-c, check   = run a number of jgmenu related checks on system\n\
-t, theme   = create config files based on templates\n\
-p, prepend = add items at top of root-menu (e.g. web browser and terminal)\n\
-a, append  = add items at bottom of root-menu (e.g. lock and exit)\n\
-q, quit    = quit init process\n"
+a, append    = add items at bottom of root-menu (e.g. lock and exit)\n\
+c, check     = run a number of jgmenu related checks on system\n\
+h, help      = show this message
+m, missing   = add any missing config options to config file\n\
+o, obtheme   = apply openbox theme
+p, prepend   = add items at top of root-menu (e.g. web browser and terminal)\n\
+q, quit      = quit init process\n\
+t, theme     = create config files based on templates\n"
 }
 
 prompt () {
@@ -602,23 +604,30 @@ prompt () {
 	printf "%b" "What now> "
 	read -r cmd
 	case "$cmd" in
+	append|a)
+		append_items
+		;;
 	check|c)
 		analyse
 		;;
-	theme|t)
-		set_theme "$(get_theme)"
+	help|h)
+		print_commands
+		;;
+	missing|m)
+		backup_config_files
+		jgmenu_run config amend --file "${config_file}"
+		;;
+	obtheme|o)
+		apply_obtheme
 		;;
 	prepend|p)
 		prepend_items
 		;;
-	append|a)
-		append_items
-		;;
 	quit|q)
 		return 1
 		;;
-	help|h)
-		print_commands
+	theme|t)
+		set_theme "$(get_theme)"
 		;;
 	clear)
 		clear ;;
@@ -648,6 +657,10 @@ do
 		config_file="${1#--config-file=}" ;;
 	--theme=*)
 		theme="${1#--theme=}" ;;
+	--apply-obtheme)
+		apply_obtheme
+		exit 0
+		;;
 	--list-themes)
 		print_available_themes
 		exit 0
@@ -671,7 +684,7 @@ do
 	shift
 done
 
-backup_jgmenurc
+mkdir -p "${HOME}/.config/jgmenu"
 test -z "${theme}" || { set_theme "$theme" ; exit 0 ; }
 initial_checks
 if test "${interactive}" = "t"

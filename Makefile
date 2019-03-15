@@ -34,11 +34,13 @@ CFLAGS  += -DVERSION='"$(VER)"'
 jgmenu:     CFLAGS  += `pkg-config cairo pango pangocairo librsvg-2.0 --cflags`
 jgmenu-ob:  CFLAGS  += `xml2-config --cflags`
 jgmenu-lx:  CFLAGS  += `pkg-config --cflags glib-2.0 libmenu-cache`
+jgmenu-obtheme: CFLAGS  += `xml2-config --cflags`
 
 jgmenu:     LIBS += `pkg-config x11 xrandr cairo pango pangocairo librsvg-2.0 --libs`
 jgmenu:     LIBS += -pthread -lpng
 jgmenu-ob:  LIBS += `xml2-config --libs`
 jgmenu-lx:  LIBS += `pkg-config --libs glib-2.0 libmenu-cache`
+jgmenu-obtheme: LIBS += `xml2-config --libs`
 
 LDFLAGS += $(LIBS)
 
@@ -60,7 +62,8 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
 SCRIPTS_LIBEXEC = src/jgmenu-init.sh src/jgmenu-pmenu.py \
                   src/jgmenu-unity-hack.py src/jgmenu-config.py
 
-PROGS_LIBEXEC   = jgmenu-ob jgmenu-socket jgmenu-i18n jgmenu-greeneye
+PROGS_LIBEXEC   = jgmenu-ob jgmenu-socket jgmenu-i18n jgmenu-greeneye \
+                  jgmenu-obtheme
 
 # wrap in ifneq to ensure we respect user defined NO_LX=1
 ifneq ($(NO_LX),1)
@@ -87,6 +90,9 @@ jgmenu-lx: jgmenu-lx.o util.o sbuf.o xdgdirs.o argv-buf.o back.o fmt.o
 endif
 jgmenu-i18n: jgmenu-i18n.o i18n.o hashmap.o util.o sbuf.o
 jgmenu-greeneye: jgmenu-greeneye.o compat.o util.o sbuf.o
+jgmenu-apps: jgmenu-apps.o compat.o util.o sbuf.o desktop.o charset.o \
+             xdgdirs.o argv-buf.o
+jgmenu-obtheme: jgmenu-obtheme.o util.o sbuf.o compat.o
 
 $(PROGS):
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -110,9 +116,6 @@ install: checkdeps $(PROGS)
 	@install -d $(DESTDIR)$(datarootdir)/applications/
 	@install -m644 ./data/jgmenu.svg $(DESTDIR)$(datarootdir)/icons/hicolor/scalable/apps/
 	@install -m644 ./data/jgmenu.desktop $(DESTDIR)$(datarootdir)/applications/
-ifeq ($(NO_LX),1)
-	@echo "info: lx module not included as libmenu-cache >=1.1.0 not found"
-endif
 
 # We are not brave enough to uninstall in /usr/, /usr/local/ etc
 uninstall:
@@ -162,6 +165,11 @@ checkdeps:
 	@for l in $(REQUIRED_LIBS); do \
                 pkg-config $${l} || echo "fatal: require ($${l})"; \
         done
+	@if ! pkg-config "libmenu-cache >= 1.1.0" "glib-2.0"; then \
+                echo "      - Cannot install lx module as build dependencies are missing"; \
+	        echo "        libmenu-cache >= 1.1.0 and glib-2.0 are needed"; \
+	        echo "        This will not prevent you from running jgmenu"; \
+	fi
 	@touch checkdeps
 
 print-%:
