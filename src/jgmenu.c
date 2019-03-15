@@ -465,8 +465,14 @@ void draw_item_sep_with_text(struct item *p)
 		text_x_coord += config.item_padding_x;
 	else if (config.sep_halign == RIGHT)
 		text_x_coord -= config.item_padding_x;
+	ui_draw_rectangle(p->area.x, p->area.y, p->area.w,
+			  p->area.h, config.item_radius, 0.0, 1,
+			  config.color_title_bg);
+	ui_draw_rectangle(p->area.x, p->area.y, p->area.w,
+			  p->area.h, config.item_radius, 1.0, 0,
+			  config.color_title_border);
 	ui_insert_text(s.buf, text_x_coord, p->area.y, p->area.h, p->area.w,
-		       config.color_sep_fg, config.sep_halign);
+		       config.color_title_fg, config.sep_halign);
 	xfree(s.buf);
 }
 
@@ -2188,6 +2194,9 @@ void run(void)
 	if (sigaction(SIGUSR1, &sa, NULL) == -1)
 		die("sigaction");
 
+	if (config.hide_on_startup)
+		hide_menu();
+
 	for (;;) {
 		FD_ZERO(&readfds);
 		FD_SET(x11_fd, &readfds);
@@ -2593,12 +2602,10 @@ int main(int argc, char *argv[])
 	init_empty_item();
 	update_filtered_list();
 	init_menuitem_coordinates();
-	if (config.hide_on_startup) {
+	if (config.hide_on_startup)
 		info("menu started in 'hidden' mode; show by `jgmenu_run`");
-		hide_menu();
-	} else {
+	else
 		XMapRaised(ui->dpy, ui->w[ui->cur].win);
-	}
 	draw_menu();
 
 	atexit(cleanup);
