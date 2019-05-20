@@ -18,8 +18,13 @@ regression_items="max_items min_items ignore_icon_cache color_noprog_fg \
 color_title_bg show_title search_all_items ignore_xsettings arrow_show \
 read_tint2rc tint2_rules tint2_button multi_window color_menu_fg"
 
-available_themes="archlabs_1803 bunsenlabs_hydrogen bunsenlabs_helium neon \
-greeneye"
+available_themes="\
+	archlabs_1803 \
+	bunsenlabs_hydrogen \
+	bunsenlabs_helium \
+	bunsenlabs_lithium_rc1 \
+	neon \
+	greeneye"
 
 JGMENU_EXEC_DIR=$(jgmenu_run --exec-path)
 
@@ -64,8 +69,6 @@ tint2_look           = 0
 at_pointer           = 0
 terminal_exec        = termite
 terminal_args        = -e
-menu_margin_x        = 4
-menu_margin_y        = 32
 menu_width           = 200
 menu_padding_top     = 10
 menu_padding_right   = 2
@@ -74,7 +77,6 @@ menu_padding_left    = 2
 menu_radius          = 0
 menu_border          = 1
 menu_halign          = left
-menu_valign          = top
 sub_hover_action     = 1
 item_margin_y        = 5
 item_height          = 30
@@ -144,6 +146,9 @@ color_norm_fg       = #13071B 100
 color_sel_bg        = #74998B 100
 color_sel_fg        = #101010 100
 color_sel_border    = #74998B 8
+color_title_fg      = #101010 100
+color_title_bg      = #74998B 100
+color_title_border  = #74998B 8
 color_sep_fg        = #101010 80
 EOF
 }
@@ -319,7 +324,7 @@ check_config_file () {
 	if ! test -e "${config_file}"
 	then
 		say "info: creating config file 'jgmenurc'"
-		jgmenu_run config create --file "${config_file}"
+		jgmenu_run config -c >"${config_file}"
 	fi
 }
 
@@ -500,7 +505,7 @@ bunsenlabs__setup_theme () {
 	# not all systems support openbox menus
 	if ! test -e ~/.config/openbox/menu.xml
 	then
-		printf "\n%s\n" "csv_cmd = pmenu" >"${config_file}"
+		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
 	fi
 }
 
@@ -512,6 +517,8 @@ set_theme () {
 	case "$1" in
 	archlabs_1803)
 		jgmenurc_archlabs_1803
+		append_items
+		prepend_items
 		;;
 	bunsenlabs_hydrogen)
 		jgmenurc_bunsenlabs_hydrogen
@@ -519,6 +526,16 @@ set_theme () {
 		;;
 	bunsenlabs_helium)
 		jgmenurc_bunsenlabs_helium
+		bunsenlabs__setup_theme
+		;;
+	bunsenlabs_lithium)
+		jgmenu_run themes bunsenlabs_lithium_rc1_config >"${config_file}"
+		jgmenu_run themes bunsenlabs_lithium_rc1_prepend >"${prepend_file}"
+		bunsenlabs__setup_theme
+		;;
+	bunsenlabs_lithium_rc1)
+		jgmenu_run themes bunsenlabs_lithium_rc1_config >"${config_file}"
+		jgmenu_run themes bunsenlabs_lithium_rc1_prepend >"${prepend_file}"
 		bunsenlabs__setup_theme
 		;;
 	neon)
@@ -535,7 +552,7 @@ set_theme () {
 
 apply_obtheme () {
 	backup_config_files
-	jgmenu_run obtheme "${config_file}" >>"${config_file}"
+	jgmenu_run obtheme "${config_file}"
 }
 
 check_nr_backups () {
@@ -550,7 +567,7 @@ backup_config_files () {
 		${HOME}/.config/jgmenu/append.csv"
 	local backup_dir
 
-	backup_dir="${HOME}/.config/jgmenu/backup/$(date +%Y%m%d%H%M%S)"
+	backup_dir="${HOME}/.config/jgmenu/backup/$(date +%Y%m%d%H%M%S%N)"
 	test -d "${backup_dir}" && die "duplicate backup directory"
 	mkdir -p "${backup_dir}"
 	say "Backing up config files..."
@@ -615,7 +632,7 @@ prompt () {
 		;;
 	missing|m)
 		backup_config_files
-		jgmenu_run config amend --file "${config_file}"
+		jgmenu_run config -a "${config_file}"
 		;;
 	obtheme|o)
 		apply_obtheme

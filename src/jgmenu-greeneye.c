@@ -74,6 +74,9 @@ static void print_categories(void)
 }
 
 #define SEARCH_ICON "~/.config/jgmenu/greeneye-search.svg"
+#define ICON_SIZE (22)
+#define ICON_MARGINH (30)
+#define ICON_MARGINV (8)
 static void output_widgets(void)
 {
 	struct sbuf s;
@@ -85,9 +88,11 @@ static void output_widgets(void)
 	printf("@rect,,%d,%d,%d,%d,2,left,top,#000000 0,#656565 50,\n",
 	       bw + pad, pad, cw - pad * 2, ah - pad);
 	printf("@search,,%d,%d,%d,%d,2,left,top,#eeeeee 80,#000000 0,\n",
-	       bw + pad + 5, pad, cw - pad * 2, ah - pad);
-	printf("@icon,,%d,%d,22,22,2,left,top,#000000 50,#000000 50,%s\n",
-	       bw + cw - pad - 30, pad + 8, s.buf);
+	       bw + pad + 5, pad, cw - pad * 2 - ICON_SIZE - ICON_MARGINH,
+	       ah - pad);
+	printf("@icon,,%d,%d,%d,%d,2,left,top,#000000 50,#000000 50,%s\n",
+	       bw + cw - pad - ICON_MARGINH, pad + ICON_MARGINV, ICON_SIZE,
+	       ICON_SIZE, s.buf);
 
 	/* Grey area for menus items */
 	printf("@rect,,%d,%d,%d,%d,2,left,top,#000000 0,#282828 90,\n",
@@ -99,9 +104,8 @@ static void output_widgets(void)
 
 static void output_config(void)
 {
-	printf("csv_cmd             = lx\n");
+	printf("csv_cmd             = jgmenu_run apps\n");
 	printf("tint2_look          = 0\n");
-	printf("menu_margin_y       = 30\n");
 	printf("menu_width          = %d\n", bw + cw);
 	printf("menu_height_min     = %d\n", ah + ch);
 	printf("menu_height_max     = %d\n", ah + ch);
@@ -110,7 +114,6 @@ static void output_config(void)
 	printf("menu_padding_bottom = 1\n");
 	printf("menu_padding_left   = %d\n", bw + 1);
 	printf("menu_border         = 1\n");
-	printf("menu_valign         = top\n");
 	printf("item_height         = %d\n", item_height);
 	printf("item_radius         = 2\n");
 	printf("item_border         = 1\n");

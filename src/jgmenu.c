@@ -309,6 +309,28 @@ struct item *prev_selectable(struct item *cur, int *isoutside)
 	return p;
 }
 
+struct item *first_selectable(void)
+{
+	int isoutside;
+	struct item *item;
+
+	item = filter_head();
+	if (!item->selectable)
+		item = next_selectable(item, &isoutside);
+	return item;
+}
+
+struct item *last_selectable(void)
+{
+	int isoutside;
+	struct item *item;
+
+	item = filter_tail();
+	if (!item->selectable)
+		item = prev_selectable(item, &isoutside);
+	return item;
+}
+
 void add_if_unique(struct item *item)
 {
 	struct item *p;
@@ -824,7 +846,6 @@ void find_subtail(void)
 
 void checkout_tag(const char *tag)
 {
-	filter_reset();
 	find_subhead(tag);
 	find_subtail();
 }
@@ -1570,6 +1591,8 @@ void action_cmd(char *cmd, const char *working_dir)
 		update(1);
 	} else if (!strncmp(cmd, "^root(", 6)) {
 		/* Two nodes with the same wid breaks get_node_from_wid() */
+		del_beyond_root();
+		filter_reset();
 		menu.current_node->last_sel = menu.sel;
 		menu.current_node->last_first = menu.first;
 		menu.current_node->wid = 0;
@@ -1627,12 +1650,15 @@ void key_event(XKeyEvent *ev)
 		menu.sel = menu.current_node->last_sel;
 
 	switch (ksym) {
+	case XK_Tab:
+		widgets_toggle_kb_grabbed();
+		break;
 	case XK_End:
 		if (filter_head() == &empty_item)
 			break;
 		menu.last = filter_tail();
 		menu.first = fill_from_bottom(menu.last);
-		menu.sel = menu.last;
+		menu.sel = last_selectable();
 		init_menuitem_coordinates();
 		menu.current_node->last_sel = menu.sel;
 		draw_menu();
@@ -1654,19 +1680,31 @@ void key_event(XKeyEvent *ev)
 			break;
 		menu.first = filter_head();
 		menu.last = fill_from_top(menu.first);
-		menu.sel = menu.first;
+		menu.sel = first_selectable();
 		init_menuitem_coordinates();
 		menu.current_node->last_sel = menu.sel;
 		draw_menu();
 		break;
 	case XK_Up:
-		if (filter_head() == &empty_item ||
-		    menu.sel == filter_head())
+		if (widgets_get_kb_grabbed()) {
+			widgets_select("XK_Up");
+			draw_menu();
+			action_cmd(widgets_get_selection_action(), NULL);
 			break;
-		menu.sel = prev_selectable(menu.sel, &isoutside);
-		if (isoutside) {
-			menu.first = menu.sel;
-			menu.last = fill_from_top(menu.first);
+		}
+		if (filter_head() == &empty_item)
+			break;
+		if (menu.sel == first_selectable()) {
+			/* bounce to bottom */
+			menu.last = filter_tail();
+			menu.first = fill_from_bottom(menu.last);
+			menu.sel = last_selectable();
+		} else {
+			menu.sel = prev_selectable(menu.sel, &isoutside);
+			if (isoutside) {
+				menu.first = menu.sel;
+				menu.last = fill_from_top(menu.first);
+			}
 		}
 		init_menuitem_coordinates();
 		menu.current_node->last_sel = menu.sel;
@@ -1710,13 +1748,24 @@ void key_event(XKeyEvent *ev)
 			action_cmd(menu.sel->cmd, menu.sel->working_dir);
 		break;
 	case XK_Down:
-		if (filter_head() == &empty_item ||
-		    menu.sel == filter_tail())
+		if (widgets_get_kb_grabbed()) {
+			widgets_select("XK_Down");
+			draw_menu();
+			action_cmd(widgets_get_selection_action(), NULL);
 			break;
-		menu.sel = next_selectable(menu.sel, &isoutside);
-		if (isoutside) {
-			menu.last = menu.sel;
-			menu.first = fill_from_bottom(menu.last);
+		}
+		if (filter_head() == &empty_item)
+			break;
+		if (menu.sel == last_selectable()) {
+			menu.first = filter_head();
+			menu.last = fill_from_top(menu.first);
+			menu.sel = first_selectable();
+		} else {
+			menu.sel = next_selectable(menu.sel, &isoutside);
+			if (isoutside) {
+				menu.last = menu.sel;
+				menu.first = fill_from_bottom(menu.last);
+			}
 		}
 		init_menuitem_coordinates();
 		menu.current_node->last_sel = menu.sel;
@@ -1828,7 +1877,7 @@ void mouse_release(XEvent *e)
 
 		/* widgets */
 		widgets_set_pointer_position(mouse_coords.x, mouse_coords.y);
-		ret = widgets_get_mouseover_action();
+		ret = widgets_get_selection_action();
 		if (ret && ret[0] != '\0') {
 			action_cmd(ret, NULL);
 			return;
@@ -2028,11 +2077,6 @@ void close_sub_window(void)
 
 void hover(void)
 {
-	if (widgets_mouseover()) {
-		tmr_mouseover_stop();
-		close_sub_window();
-		return;
-	}
 	/*
 	 * Mouse is over an already "expanded" item (i.e. one that caused a
 	 * sub window to open
@@ -2052,6 +2096,11 @@ void hover(void)
 	if (!sw_close_pending) {
 		tmr_mouseover_stop();
 		close_sub_window();
+	}
+	if (widgets_mouseover()) {
+		tmr_mouseover_stop();
+		close_sub_window();
+		return;
 	}
 }
 
@@ -2567,6 +2616,15 @@ int main(int argc, char *argv[])
 		fclose(fp);
 	if (config.hide_back_items)
 		rm_back_items();
+
+	/*
+	 * read_csv_file() ensures that the first item is a ^tag() one.
+	 * In addition to this, we need at least one menu item to enable us
+	 * to generate a menu.
+	 */
+	if (list_empty(&menu.master) || list_is_singular(&menu.master))
+		die("file did not contain any menu items");
+
 	build_tree();
 
 	if (args_checkout())
