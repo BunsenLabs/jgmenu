@@ -59,11 +59,13 @@ DEPDIR := .d
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
 
-SCRIPTS_LIBEXEC = src/jgmenu-init.sh src/jgmenu-pmenu.py \
-                  src/jgmenu-unity-hack.py src/jgmenu-config.py
+SCRIPTS_LIBEXEC = src/jgmenu-init.sh \
+                  src/jgmenu-pmenu.py \
+                  src/jgmenu-unity-hack.py \
+                  src/jgmenu-themes.sh
 
 PROGS_LIBEXEC   = jgmenu-ob jgmenu-socket jgmenu-i18n jgmenu-greeneye \
-                  jgmenu-obtheme
+                  jgmenu-obtheme jgmenu-apps jgmenu-config
 
 # wrap in ifneq to ensure we respect user defined NO_LX=1
 ifneq ($(NO_LX),1)
@@ -92,7 +94,8 @@ jgmenu-i18n: jgmenu-i18n.o i18n.o hashmap.o util.o sbuf.o
 jgmenu-greeneye: jgmenu-greeneye.o compat.o util.o sbuf.o
 jgmenu-apps: jgmenu-apps.o compat.o util.o sbuf.o desktop.o charset.o \
              xdgdirs.o argv-buf.o
-jgmenu-obtheme: jgmenu-obtheme.o util.o sbuf.o compat.o
+jgmenu-obtheme: jgmenu-obtheme.o util.o sbuf.o compat.o set.o
+jgmenu-config: jgmenu-config.o util.o sbuf.o compat.o set.o
 
 $(PROGS):
 	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -146,7 +149,7 @@ clean:
 
 test:
 	@$(MAKE) --no-print-directory -C tests/helper/ all
-	@$(MAKE) --no-print-directory -C tests/ all
+	@$(MAKE) --no-print-directory -C tests/ prove
 
 ex:
 	@$(MAKE) --no-print-directory -C examples/ all

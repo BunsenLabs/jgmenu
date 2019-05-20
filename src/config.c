@@ -20,7 +20,7 @@ void config_set_defaults(void)
 	config.stay_alive	   = 1;
 	config.hide_on_startup	   = 0;
 	config.csv_cmd		   = xstrdup("pmenu");
-	config.tint2_look	   = 1;
+	config.tint2_look	   = 0;
 	config.at_pointer	   = 0;
 	config.edge_snap_x	   = 30;
 	config.terminal_exec	   = xstrdup("x-terminal-emulator");
@@ -75,7 +75,7 @@ void config_set_defaults(void)
 	config.arrow_string	   = xstrdup("▸");
 	config.arrow_width	   = 15;
 
-	parse_hexstr("#000000 85", config.color_menu_bg);
+	parse_hexstr("#000000 100", config.color_menu_bg);
 	parse_hexstr("#eeeeee 8", config.color_menu_border);
 	parse_hexstr("#000000 00", config.color_norm_bg);
 	parse_hexstr("#eeeeee 100", config.color_norm_fg);
@@ -143,7 +143,7 @@ static void process_line(char *line)
 	} else if (!strcmp(option, "columns")) {
 		xatoi(&config.columns, value, XATOI_GT_0, "config.columns");
 	} else if (!strcmp(option, "tabs")) {
-		xatoi(&config.columns, value, XATOI_NONNEG, "config.tabs");
+		xatoi(&config.tabs, value, XATOI_NONNEG, "config.tabs");
 
 	} else if (!strcmp(option, "menu_margin_x")) {
 		xatoi(&config.menu_margin_x, value, XATOI_NONNEG, "config.margin_x");
