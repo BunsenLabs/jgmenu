@@ -21,7 +21,8 @@
 static char obtheme[80];
 
 static char *rcxml_files[] = {
-	"~/.config/openbox/rc.xml", "/etc/xdg/openbox/rc.xml", NULL
+	"~/.config/openbox/bl-rc.xml", "~/.config/openbox/rc.xml",
+	"/etc/xdg/openbox/rc.xml", NULL
 };
 
 static char *theme_paths[] = {
@@ -29,7 +30,17 @@ static char *theme_paths[] = {
 };
 
 static const char obtheme_usage[] =
-"Usage: jgmenu_run obtheme <jgmenurc filename>\n";
+"Usage: jgmenu_run obtheme <jgmenu-config-filename>\n"
+"Immitate look of current openbox menu by parsing current openbox theme and\n"
+"setting variables in specified jgmenu config file. The theme name will be\n"
+"obtained from the following list (in order of precedence):\n"
+"  * ~/.config/openbox/bl-rc.xml\n"
+"  * ~/.config/openbox/rc.xml\n"
+"  * /etc/xdg/openbox/rc.xml\n"
+"The above list can be overridden by setting environment variable JGMENU_RCXML.\n"
+"Openbox theme files will be searched for in:\n"
+"  * ~/.themes/\n"
+"  * /usr/share/themes/\n";
 
 void usage(void)
 {
@@ -181,7 +192,7 @@ static int find_themerc(struct sbuf *filename)
 	return -1;
 }
 
-static int find_rcxml(struct sbuf *filename)
+static void find_rcxml(struct sbuf *filename)
 {
 	struct stat sb;
 	int i;
@@ -190,22 +201,27 @@ static int find_rcxml(struct sbuf *filename)
 		sbuf_cpy(filename, rcxml_files[i]);
 		sbuf_expand_tilde(filename);
 		if (!stat(filename->buf, &sb))
-			return 0;
+			return;
 	}
-	return -1;
+	die("cannot find rc.xml");
 }
 
 int main(int argc, char **argv)
 {
 	struct sbuf filename;
+	char *p;
 
 	if (argc != 2)
 		usage();
 	sbuf_init(&filename);
 	LIBXML_TEST_VERSION
 
-	if (find_rcxml(&filename) < 0)
-		die("cannot find rc.xml");
+	p = getenv("JGMENU_RCXML");
+	if (p)
+		sbuf_cpy(&filename, p);
+	else
+		find_rcxml(&filename);
+
 	get_obtheme_from_rcxml(filename.buf);
 	info("detected theme '%s' from file '%s'", obtheme, filename.buf);
 	if (find_themerc(&filename) < 0)

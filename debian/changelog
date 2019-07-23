@@ -1,5 +1,5 @@
-jgmenu (3.0+bl8-1) jessie-backports; urgency=medium
+jgmenu (3.3+bl8-1) jessie-backports; urgency=medium
 
   * New upstream release
 
- -- Johan Malm <jgm323@gmail.com>  Sun, 19 May 2019 21:39:19 +0000
+ -- Johan Malm <jgm323@gmail.com>  Mon, 22 Jul 2019 21:19:12 +0100
