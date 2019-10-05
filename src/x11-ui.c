@@ -148,7 +148,7 @@ static void print_screen_info(void)
 		return;
 	info_has_been_shown = 1;
 
-	sr = XRRGetScreenResources(ui->dpy, DefaultRootWindow(ui->dpy));
+	sr = XRRGetScreenResourcesCurrent(ui->dpy, DefaultRootWindow(ui->dpy));
 	info("%d xrandr crt controller(s) found", sr->ncrtc);
 	for (i = 0; i < sr->ncrtc; i++) {
 		ci = XRRGetCrtcInfo(ui->dpy, sr, sr->crtcs[i]);
@@ -175,9 +175,9 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 	XRRScreenResources *sr;
 	XRRCrtcInfo *ci = NULL;
 
-	if (getenv("JGMENU_SCREEN_INFO"))
+	if (config.verbosity >= 3)
 		print_screen_info();
-	sr = XRRGetScreenResources(ui->dpy, DefaultRootWindow(ui->dpy));
+	sr = XRRGetScreenResourcesCurrent(ui->dpy, DefaultRootWindow(ui->dpy));
 	BUG_ON(!sr);
 	n = sr->ncrtc;
 
@@ -191,7 +191,8 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 		ci = XRRGetCrtcInfo(ui->dpy, sr, sr->crtcs[monitor - 1]);
 		if (!ci->noutput)
 			die("cannot connect to monitor '%d'", monitor);
-		info("using user specified monitor '%d'", monitor);
+		if (config.verbosity >= 3)
+			info("using user specified monitor '%d'", monitor);
 		goto monitor_selected;
 	}
 
@@ -204,7 +205,8 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 		if (!ci->noutput)
 			continue;
 		if (intersect(x, y, 1, 1, ci)) {
-			info("using monitor '%d'", i + 1);
+			if (config.verbosity >= 3)
+				info("using monitor '%d'", i + 1);
 			break;
 		}
 	}
@@ -261,6 +263,7 @@ void ui_create_window(int x, int y, int w, int h)
 	 * http://tronche.com/gui/x/xlib/appendix/b/
 	 */
 	XDefineCursor(ui->dpy, ui->w[ui->cur].win, XCreateFontCursor(ui->dpy, 68));
+	XSync(ui->dpy, False);
 }
 
 /*
