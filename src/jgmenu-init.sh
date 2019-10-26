@@ -1,6 +1,7 @@
 #!/bin/sh
-
+#
 # 'jgmenu init' creates/updates jgmenurc
+#
 
 config_file=~/.config/jgmenu/jgmenurc
 prepend_file=~/.config/jgmenu/prepend.csv
@@ -15,14 +16,15 @@ verbose=f
 interactive=f
 
 regression_items="max_items min_items ignore_icon_cache color_noprog_fg \
-color_title_bg show_title search_all_items ignore_xsettings arrow_show \
-read_tint2rc tint2_rules tint2_button multi_window color_menu_fg at_pointer"
+show_title search_all_items ignore_xsettings arrow_show read_tint2rc \
+tint2_rules tint2_button multi_window color_menu_fg at_pointer"
 
 available_themes="\
 	archlabs_1803 \
 	bunsenlabs_hydrogen \
 	bunsenlabs_helium \
 	bunsenlabs_lithium \
+	col2 \
 	col3 \
 	neon \
 	greeneye"
@@ -45,6 +47,10 @@ die () {
 verbose_info () {
 	test "$verbose" = "t" || return
 	printf "info: %b\n" "$@"
+}
+
+isinstalled () {
+	which "$1" >/dev/null 2>&1
 }
 
 usage () {
@@ -78,11 +84,11 @@ append__lock () {
 		say "append.csv already contains a lock entry"
 		return
 	fi
-	if type i3lock-fancy >/dev/null 2>&1
+	if isinstalled i3lock-fancy
 	then
 		append__add "Lock,i3lock-fancy -p,system-lock-screen"
 		say "Append i3lock-fancy"
-	elif type i3lock >/dev/null 2>&1
+	elif isinstalled i3lock
 	then
 		append__add "Lock,i3lock -c 000000,system-lock-screen"
 		say "Append i3lock"
@@ -95,7 +101,7 @@ append__exit () {
 		say "append.csv already contains an exit entry"
 		return
 	fi
-	if type systemctl >/dev/null
+	if isinstalled systemctl
 	then
 		say "Append exit options (systemctl)"
 		append__add "Exit,^checkout(exit),system-shutdown"
@@ -151,7 +157,7 @@ prepend__add_terminal () {
 	done
 	for x in ${prepend__terminals}
 	do
-		if type "${x}" >/dev/null 2>&1
+		if isinstalled "${x}"
 		then
 			prepend__add "Terminal,${x},utilities-terminal"
 			printf "Prepend %b\n" "${x}"
@@ -171,7 +177,7 @@ prepend__add_browser () {
 	done
 	for x in ${prepend__browsers}
 	do
-		if type "${x}" >/dev/null 2>&1
+		if isinstalled "${x}"
 		then
 			prepend__add "Browser,${x},${x}"
 			printf "Prepend %b\n" "${x}"
@@ -191,7 +197,7 @@ prepend__add_file_manager () {
 	done
 	for x in ${prepend__file_managers}
 	do
-		if type "${x}" >/dev/null 2>&1
+		if isinstalled "${x}" >/dev/null 2>&1
 		then
 			prepend__add "File manager,${x},system-file-manager"
 			printf "Prepend %b\n" "${x}"
@@ -228,6 +234,7 @@ check_regression () {
 }
 
 check_menu_package_installed () {
+	# shellcheck disable=SC2039
 	local menu_package_exists=
 	for d in $xdg_config_dirs
 	do
@@ -313,7 +320,7 @@ restart_jgmenu () {
 create_icon_greeneye () {
 	greeneye_search_icon="${HOME}/.config/jgmenu/greeneye-search.svg"
 	test -e "${greeneye_search_icon}" && return
-	cat >${greeneye_search_icon} <<'EOF'
+	cat >"${greeneye_search_icon}" <<'EOF'
 <!-- /usr/share/icons/breeze-dark/actions/22/system-search.svg -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22">
   <defs id="defs3051">
@@ -335,6 +342,14 @@ EOF
 fallback_if_no_openbox () {
 	# not all systems support openbox menus
 	if ! test -e ~/.config/openbox/menu.xml
+	then
+		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
+	fi
+}
+
+fallback_if_no_lx () {
+	# not all systems support the lx module
+	if ! lx_installed
 	then
 		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
 	fi
@@ -362,7 +377,7 @@ set_theme () {
 	bunsenlabs_lithium)
 		jgmenu_run themes bunsenlabs_lithium_config >"${config_file}"
 		jgmenu_run themes bunsenlabs_lithium_prepend >"${prepend_file}"
-		fallback_if_no_openbox
+		fallback_if_no_lx
 		;;
 	neon)
 		jgmenu_run themes neon_config >"${config_file}"
@@ -374,6 +389,10 @@ set_theme () {
 		create_icon_greeneye
 		jgmenu_run greeneye --widgets >"${prepend_file}"
 		jgmenu_run greeneye --config >"${config_file}"
+		;;
+	col2)
+		jgmenu_run themes col2_config >"${config_file}"
+		jgmenu_run themes col2_prepend >"${prepend_file}"
 		;;
 	col3)
 		jgmenu_run themes col3_config >"${config_file}"
@@ -397,15 +416,17 @@ apply_gtktheme () {
 }
 
 check_nr_backups () {
-	nr=$(ls -1 ~/.config/jgmenu/backup/ 2>/dev/null | wc -l)
+	nr=$(find ~/.config/jgmenu/backup/ 2>/dev/null | wc -l)
 	test "$nr" -gt 100 && warn "\
 you have more than 100 backup files - consider removing a few"
 }
 
 backup_config_files () {
+	# shellcheck disable=SC2039
 	local files_to_backup="${HOME}/.config/jgmenu/jgmenurc \
 		${HOME}/.config/jgmenu/prepend.csv \
 		${HOME}/.config/jgmenu/append.csv"
+	# shellcheck disable=SC2039
 	local backup_dir
 
 	backup_dir="${HOME}/.config/jgmenu/backup/$(date +%Y%m%d%H%M%S%N)"
@@ -459,6 +480,7 @@ t, theme     = create config files based on templates\n"
 }
 
 prompt () {
+	# shellcheck disable=SC2039
 	local cmd=
 
 	printf "%b" "What now> "
