@@ -93,7 +93,6 @@ struct node {
  * When a submenu is checked out, *subhead and *subtail are set.
  */
 struct menu {
-	struct item *head;	   /* first item in linked list		  */
 	struct item *subhead;	   /* first item in checked out submenu	  */
 	struct item *subtail;	   /* last item in checked out submenu	  */
 	struct item *first;	   /* first visible item		  */
@@ -160,7 +159,7 @@ static void usage(void)
 
 static void version(void)
 {
-	printf("%s\n", VERSION);
+	printf("%s\n", (char *)VERSION);
 	exit(0);
 }
 
@@ -1397,7 +1396,7 @@ static void pipemenu_add(const char *s)
 	pipe_head = list_last_entry(&menu.master, struct item, master);
 	nr_lines = read_csv_file(fp, true);
 	if (fp && fp != stdin)
-		fclose(fp);
+		pclose(fp);
 	if (!nr_lines) {
 		warn("empty pipemenu");
 		return;
@@ -2496,6 +2495,7 @@ static void cleanup(void)
 		icon_cleanup();
 	widgets_cleanup();
 	watch_cleanup();
+	t2conf_atexit();
 	delete_empty_item();
 	destroy_node_tree();
 	destroy_master_list();

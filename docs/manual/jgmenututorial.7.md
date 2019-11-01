@@ -1,10 +1,10 @@
 % JGMENUTUTORIAL(7)
 % Johan Malm
-% 29 September, 2019
+% 16 October, 2019
 
 # NAME
 
-The jgmenu tutorial
+jgmenututorial - A step-by-step tutorial to jgmenu
 
 # INTRODUCTION
 
@@ -71,9 +71,14 @@ the modular architecture or jgmenu and the `jgmenu_run` wrapper.
 
 When jgmenu is started, two processes are run to produce the menu.
 
-    ┌───────────────┐     ┌────────────────┐
-    │ csv-generator │ --> │ graphical menu │
-    └───────────────┘     └────────────────┘
+    ┌────────────────┐
+    │ csv-generator  │
+    └────────────────┘
+            |
+            V
+    ┌────────────────┐
+    │ graphical menu │
+    └────────────────┘
 
 The first process (csv-generator) produces the menu content, whereas the
 second generates a graphical menu (what you see). This modular approach
