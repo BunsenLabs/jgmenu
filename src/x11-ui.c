@@ -148,7 +148,7 @@ static void print_screen_info(void)
 		return;
 	info_has_been_shown = 1;
 
-	sr = XRRGetScreenResources(ui->dpy, DefaultRootWindow(ui->dpy));
+	sr = XRRGetScreenResourcesCurrent(ui->dpy, DefaultRootWindow(ui->dpy));
 	info("%d xrandr crt controller(s) found", sr->ncrtc);
 	for (i = 0; i < sr->ncrtc; i++) {
 		ci = XRRGetCrtcInfo(ui->dpy, sr, sr->crtcs[i]);
@@ -175,9 +175,9 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 	XRRScreenResources *sr;
 	XRRCrtcInfo *ci = NULL;
 
-	if (getenv("JGMENU_SCREEN_INFO"))
+	if (config.verbosity >= 3)
 		print_screen_info();
-	sr = XRRGetScreenResources(ui->dpy, DefaultRootWindow(ui->dpy));
+	sr = XRRGetScreenResourcesCurrent(ui->dpy, DefaultRootWindow(ui->dpy));
 	BUG_ON(!sr);
 	n = sr->ncrtc;
 
@@ -191,7 +191,8 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 		ci = XRRGetCrtcInfo(ui->dpy, sr, sr->crtcs[monitor - 1]);
 		if (!ci->noutput)
 			die("cannot connect to monitor '%d'", monitor);
-		info("using user specified monitor '%d'", monitor);
+		if (config.verbosity >= 3)
+			info("using user specified monitor '%d'", monitor);
 		goto monitor_selected;
 	}
 
@@ -204,7 +205,8 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 		if (!ci->noutput)
 			continue;
 		if (intersect(x, y, 1, 1, ci)) {
-			info("using monitor '%d'", i + 1);
+			if (config.verbosity >= 3)
+				info("using monitor '%d'", i + 1);
 			break;
 		}
 	}
@@ -261,6 +263,7 @@ void ui_create_window(int x, int y, int w, int h)
 	 * http://tronche.com/gui/x/xlib/appendix/b/
 	 */
 	XDefineCursor(ui->dpy, ui->w[ui->cur].win, XCreateFontCursor(ui->dpy, 68));
+	XSync(ui->dpy, False);
 }
 
 /*
@@ -311,11 +314,6 @@ void ui_win_add(int x, int y, int w, int h, int max_w, int max_h, const char *fo
 	XMapWindow(ui->dpy, ui->w[ui->cur].win);
 }
 
-void ui_win_goto_parent(void)
-{
-	ui->cur--;
-}
-
 void ui_win_activate(Window w)
 {
 	int i;
@@ -338,18 +336,6 @@ int ui_has_child_window_open(Window w)
 	if (ui->w[i + 1].c)
 		return 1;
 	return 0;
-}
-
-Window ui_win_child_wid(Window w)
-{
-	int i;
-
-	for (i = 0; ui->w[i].c; i++)
-		if (w == ui->w[i].win)
-			break;
-	if (!ui->w[i + 1].c)
-		return 0;
-	return ui->w[i + 1].win;
 }
 
 static void del_win(int win_index)
@@ -547,22 +533,6 @@ void ui_cleanup(void)
 	pango_font_description_free(ui->w[ui->cur].pangofont);
 	g_object_unref(ui->w[ui->cur].pangolayout);
 	xfree(ui);
-}
-
-/*
- * ui_insert_svg() is not currently used as it's quite slow
- * I've kept the code here am I might use it later
- */
-void ui_insert_svg(RsvgHandle *svg, double x, double y, double size)
-{
-	RsvgDimensionData dimensions;
-
-	rsvg_handle_get_dimensions(svg, &dimensions);
-	cairo_save(ui->w[ui->cur].c);
-	cairo_translate(ui->w[ui->cur].c, x, y);
-	cairo_scale(ui->w[ui->cur].c, size / dimensions.width, size / dimensions.width);
-	rsvg_handle_render_cairo(svg, ui->w[ui->cur].c);
-	cairo_restore(ui->w[ui->cur].c);
 }
 
 void ui_insert_image(cairo_surface_t *image, double x, double y, double size)

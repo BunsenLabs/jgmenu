@@ -46,7 +46,7 @@ static const char greeneye_usage[] =
 "    jgmenu_run greeneye --config  >$HOME/.config/jgmenu/jgmenurc\n"
 "    jgmenu_run greeneye --widgets >$HOME/.config/jgmenu/prepend.csv\n";
 
-void usage(void)
+static void usage(void)
 {
 	printf("%s", greeneye_usage);
 	exit(0);
@@ -104,7 +104,7 @@ static void output_widgets(void)
 
 static void output_config(void)
 {
-	printf("csv_cmd             = jgmenu_run apps\n");
+	printf("csv_cmd             = apps\n");
 	printf("tint2_look          = 0\n");
 	printf("menu_width          = %d\n", bw + cw);
 	printf("menu_height_min     = %d\n", ah + ch);

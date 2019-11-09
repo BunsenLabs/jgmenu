@@ -1,6 +1,7 @@
 #!/bin/sh
-
+#
 # 'jgmenu init' creates/updates jgmenurc
+#
 
 config_file=~/.config/jgmenu/jgmenurc
 prepend_file=~/.config/jgmenu/prepend.csv
@@ -15,14 +16,16 @@ verbose=f
 interactive=f
 
 regression_items="max_items min_items ignore_icon_cache color_noprog_fg \
-color_title_bg show_title search_all_items ignore_xsettings arrow_show \
-read_tint2rc tint2_rules tint2_button multi_window color_menu_fg"
+show_title search_all_items ignore_xsettings arrow_show read_tint2rc \
+tint2_rules tint2_button multi_window color_menu_fg at_pointer"
 
 available_themes="\
 	archlabs_1803 \
 	bunsenlabs_hydrogen \
 	bunsenlabs_helium \
-	bunsenlabs_lithium_rc1 \
+	bunsenlabs_lithium \
+	col2 \
+	col3 \
 	neon \
 	greeneye"
 
@@ -33,7 +36,7 @@ say () {
 }
 
 warn () {
-	printf "warning: %b\n" "$@"
+	printf "warn: %b\n" "$@"
 }
 
 die () {
@@ -44,6 +47,10 @@ die () {
 verbose_info () {
 	test "$verbose" = "t" || return
 	printf "info: %b\n" "$@"
+}
+
+isinstalled () {
+	which "$1" >/dev/null 2>&1
 }
 
 usage () {
@@ -62,120 +69,6 @@ Options include:\n\
     --verbose             Be more verbose\n"
 }
 
-jgmenurc_archlabs_1803 () {
-cat >${config_file} <<'EOF'
-stay_alive           = 1
-csv_cmd              = pmenu
-tint2_look           = 0
-at_pointer           = 0
-terminal_exec        = termite
-terminal_args        = -e
-menu_width           = 200
-menu_padding_top     = 10
-menu_padding_right   = 2
-menu_padding_bottom  = 5
-menu_padding_left    = 2
-menu_radius          = 0
-menu_border          = 1
-menu_halign          = left
-sub_hover_action     = 1
-item_margin_y        = 5
-item_height          = 30
-item_padding_x       = 8
-item_radius          = 0
-item_border          = 0
-sep_height           = 5
-font                 = Ubuntu 12px
-icon_size            = 24
-color_menu_bg        = #2b303b 100
-color_norm_bg        = #2b303b 0
-color_norm_fg        = #8fa1b3 100
-color_sel_bg         = #8fa1b3 60
-color_sel_fg         = #2b303b 100
-color_sep_fg         = #8fa1b3 40
-EOF
-}
-
-jgmenurc_bunsenlabs_hydrogen () {
-cat >${config_file} <<'EOF'
-tint2_look          = 0
-at_pointer          = 1
-csv_cmd             = ob
-menu_width          = 120
-menu_padding_top    = 0
-menu_padding_right  = 0
-menu_padding_bottom = 0
-menu_padding_left   = 0
-menu_radius         = 1
-sub_spacing         = 3
-item_margin_x       = 1
-item_margin_y       = 1
-item_height         = 19
-sep_height          = 4
-sep_halign          = right
-icon_size           = 0
-arrow_width         = 8
-color_menu_bg       = #3a3a3a 100
-EOF
-}
-
-jgmenurc_bunsenlabs_helium () {
-cat >${config_file} <<'EOF'
-tint2_look          = 0
-at_pointer          = 1
-csv_cmd             = ob
-menu_width          = 134
-menu_padding_top    = 0
-menu_padding_right  = 0
-menu_padding_bottom = 0
-menu_padding_left   = 0
-menu_radius         = 1
-sub_spacing         = 6
-item_margin_x       = 1
-item_margin_y       = 1
-item_height         = 21
-sep_height          = 4
-sep_halign          = right
-font                = Sans 10
-icon_size           = 0
-arrow_string        = ›
-arrow_width         = 8
-color_menu_bg       = #C8CFCB 100
-color_menu_border   = #C8CFCB 8
-color_norm_bg       = #C8CFCB 00
-color_norm_fg       = #13071B 100
-color_sel_bg        = #74998B 100
-color_sel_fg        = #101010 100
-color_sel_border    = #74998B 8
-color_title_fg      = #101010 100
-color_title_bg      = #74998B 100
-color_title_border  = #74998B 8
-color_sep_fg        = #101010 80
-EOF
-}
-
-jgmenurc_neon () {
-cat >${config_file} <<'EOF'
-tint2_look          = 0
-menu_margin_y       = 30
-menu_width          = 272
-menu_padding_top    = 100
-menu_padding_right  = 10
-menu_padding_bottom = 10
-menu_padding_left   = 10
-menu_valign         = bottom
-item_radius         = 2
-item_border         = 1
-font		    = Roboto Condensed 9
-color_menu_bg       = #cecece 90
-color_menu_border   = #888888 100
-color_norm_fg       = #444444 100
-color_sel_bg        = #e6e6e6 100
-color_sel_fg        = #444444 100
-color_sel_border    = #888888 100
-EOF
-}
-
 append__add () {
 	printf "%b\n" "$@" >>"${append_file}"
 }
@@ -191,11 +84,11 @@ append__lock () {
 		say "append.csv already contains a lock entry"
 		return
 	fi
-	if type i3lock-fancy >/dev/null 2>&1
+	if isinstalled i3lock-fancy
 	then
 		append__add "Lock,i3lock-fancy -p,system-lock-screen"
 		say "Append i3lock-fancy"
-	elif type i3lock >/dev/null 2>&1
+	elif isinstalled i3lock
 	then
 		append__add "Lock,i3lock -c 000000,system-lock-screen"
 		say "Append i3lock"
@@ -208,7 +101,7 @@ append__exit () {
 		say "append.csv already contains an exit entry"
 		return
 	fi
-	if type systemctl >/dev/null
+	if isinstalled systemctl
 	then
 		say "Append exit options (systemctl)"
 		append__add "Exit,^checkout(exit),system-shutdown"
@@ -264,7 +157,7 @@ prepend__add_terminal () {
 	done
 	for x in ${prepend__terminals}
 	do
-		if type "${x}" >/dev/null 2>&1
+		if isinstalled "${x}"
 		then
 			prepend__add "Terminal,${x},utilities-terminal"
 			printf "Prepend %b\n" "${x}"
@@ -284,7 +177,7 @@ prepend__add_browser () {
 	done
 	for x in ${prepend__browsers}
 	do
-		if type "${x}" >/dev/null 2>&1
+		if isinstalled "${x}"
 		then
 			prepend__add "Browser,${x},${x}"
 			printf "Prepend %b\n" "${x}"
@@ -304,7 +197,7 @@ prepend__add_file_manager () {
 	done
 	for x in ${prepend__file_managers}
 	do
-		if type "${x}" >/dev/null 2>&1
+		if isinstalled "${x}" >/dev/null 2>&1
 		then
 			prepend__add "File manager,${x},system-file-manager"
 			printf "Prepend %b\n" "${x}"
@@ -341,6 +234,7 @@ check_regression () {
 }
 
 check_menu_package_installed () {
+	# shellcheck disable=SC2039
 	local menu_package_exists=
 	for d in $xdg_config_dirs
 	do
@@ -426,7 +320,7 @@ restart_jgmenu () {
 create_icon_greeneye () {
 	greeneye_search_icon="${HOME}/.config/jgmenu/greeneye-search.svg"
 	test -e "${greeneye_search_icon}" && return
-	cat >${greeneye_search_icon} <<'EOF'
+	cat >"${greeneye_search_icon}" <<'EOF'
 <!-- /usr/share/icons/breeze-dark/actions/22/system-search.svg -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22">
   <defs id="defs3051">
@@ -440,71 +334,22 @@ create_icon_greeneye () {
     style="fill:currentColor;fill-opacity:1;stroke:none" 
     d="M 9 3 C 5.6759952 3 3 5.6759952 3 9 C 3 12.324005 5.6759952 15 9 15 C 10.481205 15 11.830584 14.465318 12.875 13.582031 L 18.292969 19 L 19 18.292969 L 13.582031 12.875 C 14.465318 11.830584 15 10.481205 15 9 C 15 5.6759952 12.324005 3 9 3 z M 9 4 C 11.770005 4 14 6.2299952 14 9 C 14 11.770005 11.770005 14 9 14 C 6.2299952 14 4 11.770005 4 9 C 4 6.2299952 6.2299952 4 9 4 z "
     class="ColorScheme-Text"
-    />  
+    />
 </svg>
 EOF
 }
 
-neon__add_widgets () {
-cat >${prepend_file} <<'EOF'
-# Search box
-@rect,,10,10,252,25,2,left,top,#666666 15,#000000 0,content
-@search,,10,10,252,25,2,left,top,#666666 90,#222222 3,Type to search...
-
-# Icon 1
-@rect,^root(fav),25,40,42,42,2,left,top,#000000 0,#000000 0,
-@icon,,30,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/bookmark-new.svg
-
-# Icon 2
-@rect,^root(pmenu),85,40,42,42,2,left,top,#000000 0,#000000 0,
-@icon,,90,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/view-list-icons.svg
-
-# Icon 3
-@rect,^root(history),145,40,42,42,2,left,top,#000000 0,#000000 0,
-@icon,,150,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/appointment-new.svg
-
-# Icon 4
-@rect,^root(exit),205,40,42,42,2,left,top,#000000 0,#000000 0,
-@icon,,210,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/system-log-out.svg
-EOF
-}
-
-neon__add_append_items () {
-cat >>${append_file} <<'EOF'
-
-^tag(fav)
-Terminal,uxterm,utilities-terminal
-Browser,firefox,firefox
-File manager,pcmanfm,system-file-manager
-
-^tag(history)
-foo
-bar
-
-^tag(exit)
-Lock,i3lock -c 000000,system-lock-screen
-Exit to prompt,openbox --exit,system-log-out
-Suspend,systemctl -i suspend,system-log-out
-Reboot,systemctl -i reboot,system-reboot
-Poweroff,systemctl -i poweroff,system-shutdown
-
-EOF
-}
-
-neon__setup_theme () {
-	if ! test -d "/usr/share/icons/breeze"
+fallback_if_no_openbox () {
+	# not all systems support openbox menus
+	if ! test -e ~/.config/openbox/menu.xml
 	then
-		warn "warn: icon theme 'breeze' is required to complete this theme"
-	else
-		neon__add_widgets
-		neon__add_append_items
-		say "Theme 'neon' has been set"
+		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
 	fi
 }
 
-bunsenlabs__setup_theme () {
-	# not all systems support openbox menus
-	if ! test -e ~/.config/openbox/menu.xml
+fallback_if_no_lx () {
+	# not all systems support the lx module
+	if ! lx_installed
 	then
 		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
 	fi
@@ -517,36 +362,40 @@ set_theme () {
 
 	case "$1" in
 	archlabs_1803)
-		jgmenurc_archlabs_1803
+		jgmenu_run themes archlabs_1803_config >"${config_file}"
 		append_items
 		prepend_items
 		;;
 	bunsenlabs_hydrogen)
-		jgmenurc_bunsenlabs_hydrogen
-		bunsenlabs__setup_theme
+		jgmenu_run themes bunsenlabs_hydrogen_config >"${config_file}"
+		fallback_if_no_openbox
 		;;
 	bunsenlabs_helium)
-		jgmenurc_bunsenlabs_helium
-		bunsenlabs__setup_theme
+		jgmenu_run themes bunsenlabs_helium_config >"${config_file}"
+		fallback_if_no_openbox
 		;;
 	bunsenlabs_lithium)
-		jgmenu_run themes bunsenlabs_lithium_rc1_config >"${config_file}"
-		jgmenu_run themes bunsenlabs_lithium_rc1_prepend >"${prepend_file}"
-		bunsenlabs__setup_theme
-		;;
-	bunsenlabs_lithium_rc1)
-		jgmenu_run themes bunsenlabs_lithium_rc1_config >"${config_file}"
-		jgmenu_run themes bunsenlabs_lithium_rc1_prepend >"${prepend_file}"
-		bunsenlabs__setup_theme
+		jgmenu_run themes bunsenlabs_lithium_config >"${config_file}"
+		jgmenu_run themes bunsenlabs_lithium_prepend >"${prepend_file}"
+		fallback_if_no_lx
 		;;
 	neon)
-		jgmenurc_neon
-		neon__setup_theme
+		jgmenu_run themes neon_config >"${config_file}"
+		jgmenu_run themes neon_prepend >"${prepend_file}"
+		jgmenu_run themes neon_append >"${append_file}"
+		test -d "/usr/share/icons/breeze" || warn "icon theme 'breeze' is required"
 		;;
 	greeneye)
 		create_icon_greeneye
 		jgmenu_run greeneye --widgets >"${prepend_file}"
 		jgmenu_run greeneye --config >"${config_file}"
+		;;
+	col2)
+		jgmenu_run themes col2_config >"${config_file}"
+		jgmenu_run themes col2_prepend >"${prepend_file}"
+		;;
+	col3)
+		jgmenu_run themes col3_config >"${config_file}"
 		;;
 	esac
 }
@@ -556,16 +405,28 @@ apply_obtheme () {
 	jgmenu_run obtheme "${config_file}"
 }
 
+apply_gtktheme () {
+	backup_config_files
+	if ! test -e "${JGMENU_EXEC_DIR}"/jgmenu-gtktheme.py
+	then
+		warn "The gtktheme module is not installed on your system"
+		return
+	fi
+	jgmenu_run gtktheme 2>/dev/null
+}
+
 check_nr_backups () {
-	nr=$(ls -1 ~/.config/jgmenu/backup/ 2>/dev/null | wc -l)
+	nr=$(find ~/.config/jgmenu/backup/ 2>/dev/null | wc -l)
 	test "$nr" -gt 100 && warn "\
 you have more than 100 backup files - consider removing a few"
 }
 
 backup_config_files () {
+	# shellcheck disable=SC2039
 	local files_to_backup="${HOME}/.config/jgmenu/jgmenurc \
 		${HOME}/.config/jgmenu/prepend.csv \
 		${HOME}/.config/jgmenu/append.csv"
+	# shellcheck disable=SC2039
 	local backup_dir
 
 	backup_dir="${HOME}/.config/jgmenu/backup/$(date +%Y%m%d%H%M%S%N)"
@@ -608,15 +469,18 @@ print_commands () {
 *** commands ***\n\
 a, append    = add items at bottom of root-menu (e.g. lock and exit)\n\
 c, check     = run a number of jgmenu related checks on system\n\
+g, gtktheme  = apply gtk theme (optional package)
 h, help      = show this message
 m, missing   = add any missing config options to config file\n\
 o, obtheme   = apply openbox theme
 p, prepend   = add items at top of root-menu (e.g. web browser and terminal)\n\
 q, quit      = quit init process\n\
+R, reset     = delete all config files and create a default jgmenurc\n\
 t, theme     = create config files based on templates\n"
 }
 
 prompt () {
+	# shellcheck disable=SC2039
 	local cmd=
 
 	printf "%b" "What now> "
@@ -638,11 +502,19 @@ prompt () {
 	obtheme|o)
 		apply_obtheme
 		;;
+	gtktheme|g)
+		apply_gtktheme
+		;;
 	prepend|p)
 		prepend_items
 		;;
 	quit|q)
 		return 1
+		;;
+	reset|R)
+		backup_config_files
+		rm -f "${config_file}" "${prepend_file}" "${append_file}"
+		check_config_file
 		;;
 	theme|t)
 		set_theme "$(get_theme)"
@@ -677,6 +549,10 @@ do
 		theme="${1#--theme=}" ;;
 	--apply-obtheme)
 		apply_obtheme
+		exit 0
+		;;
+	--apply-gtktheme)
+		apply_gtktheme
 		exit 0
 		;;
 	--list-themes)

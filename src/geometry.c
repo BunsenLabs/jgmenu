@@ -38,7 +38,6 @@ static int screen_width;
 static int screen_height;		/*  g */
 static int screen_x0;
 static int screen_y0;
-static int use_tint2_vars;		/* s  */
 
 static void update_root(void)
 {
@@ -49,7 +48,8 @@ static void update_root(void)
 				   menu_margin_x;
 	else if (win[cur].menu_halign == CENTER)
 		win[cur].menu_x0 = (screen_width - win[cur].menu_width) / 2;
-	if (!config.at_pointer && !use_tint2_vars)
+	if (config.position_mode != POSITION_MODE_PTR &&
+	    config.position_mode != POSITION_MODE_IPC)
 		win[cur].menu_x0 += screen_x0;
 
 	if (win[cur].menu_valign == BOTTOM)
@@ -59,7 +59,8 @@ static void update_root(void)
 		win[cur].menu_y0 = menu_margin_y;
 	else if (win[cur].menu_valign == CENTER)
 		win[cur].menu_y0 = (screen_height - win[cur].menu_height) / 2;
-	if (!config.at_pointer && !use_tint2_vars)
+	if (config.position_mode != POSITION_MODE_PTR &&
+	    config.position_mode != POSITION_MODE_IPC)
 		win[cur].menu_y0 += screen_y0;
 }
 
@@ -290,14 +291,6 @@ void geo_set_menu_width(int width)
 	geo_update();
 }
 
-void geo_set_menu_width_from_itemarea_width(int width)
-{
-	win[cur].menu_width = !cur ? width + menu_padding_left +
-			      menu_padding_right :
-			      width + sub_padding_left + sub_padding_right;
-	geo_update();
-}
-
 void geo_set_menu_height(int h)
 {
 	win[cur].menu_height = h;
@@ -395,11 +388,6 @@ void geo_set_menu_padding_left(int padding)
 	menu_padding_left = padding;
 }
 
-void geo_set_use_tint2_vars(int use)
-{
-	use_tint2_vars = use;
-}
-
 /*********************************************************************/
 
 int geo_get_menu_x0(void)
@@ -433,11 +421,6 @@ int geo_get_menu_width_from_itemarea_width(int width)
 {
 	return !cur ? width + menu_padding_right + menu_padding_left :
 	       width + sub_padding_right + sub_padding_left;
-}
-
-int geo_get_item_height(void)
-{
-	return item_height;
 }
 
 int geo_get_screen_x0(void)

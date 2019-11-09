@@ -5,10 +5,19 @@
 #include "util.h"
 #include "sbuf.h"
 
+static int info_muted;
+
+void mute_info(void)
+{
+	info_muted = 1;
+}
+
 void info(const char *err, ...)
 {
 	va_list params;
 
+	if (info_muted)
+		return;
 	fprintf(stderr, "info: ");
 	va_start(params, err);
 	vfprintf(stderr, err, params);
@@ -211,7 +220,7 @@ void xatoi(int *var, const char *value, int flags, const char *key)
 	char *endptr;
 
 	if (!value || *value == '\0') {
-		xatoi_warn("null or empty string", value, key);
+		xatoi_warn("null or empty string", "", key);
 		return;
 	}
 

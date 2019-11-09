@@ -59,7 +59,6 @@ void geo_win_add(struct area parent_item);
 void geo_win_del(void);
 
 void geo_set_menu_width(int w);
-void geo_set_menu_width_from_itemarea_width(int w);
 void geo_set_menu_height(int h);
 void geo_set_menu_height_from_itemarea_height(int h);
 void geo_set_menu_margin_x(int x);
@@ -78,7 +77,6 @@ void geo_set_menu_padding_top(int padding);
 void geo_set_menu_padding_right(int padding);
 void geo_set_menu_padding_bottom(int padding);
 void geo_set_menu_padding_left(int padding);
-void geo_set_use_tint2_vars(int use);
 
 int geo_get_menu_x0(void);
 int geo_get_menu_y0(void);
@@ -86,7 +84,6 @@ int geo_get_menu_height(void);
 int geo_get_itemarea_height(void);
 int geo_get_menu_width(void);
 int geo_get_menu_width_from_itemarea_width(int w);
-int geo_get_item_height(void);
 int geo_get_screen_x0(void);
 int geo_get_screen_y0(void);
 int geo_get_screen_height(void);

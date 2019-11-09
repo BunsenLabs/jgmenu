@@ -15,6 +15,7 @@
 #include "sbuf.h"
 #include "compat.h"
 #include "set.h"
+#include "spawn.h"
 
 struct option {
 	const char *key;
@@ -22,11 +23,12 @@ struct option {
 };
 
 static struct option options[] = {
+	{ "verbosity", "0" },
 	{ "stay_alive", "1" },
 	{ "hide_on_startup", "0" },
 	{ "csv_cmd", "pmenu" },
 	{ "tint2_look", "0" },
-	{ "at_pointer", "0" },
+	{ "position_mode", "fixed" },
 	{ "edge_snap_x", "30" },
 	{ "terminal_exec", "x-terminal-emulator" },
 	{ "terminal_args", "-e" },
@@ -82,6 +84,9 @@ static struct option options[] = {
 	{ "color_sel_border", "#eeeeee 8" },
 	{ "color_sep_fg", "#ffffff 20" },
 	{ "color_scroll_ind", "#eeeeee 40" },
+	{ "color_title_fg", "#eeeeee 50" },
+	{ "color_title_bg", "#000000 0" },
+	{ "color_title_border", "#000000 0" },
 	{ "csv_name_format", "%n (%g)" },
 	{ "csv_single_window", "0" },
 	{ "csv_no_dirs", "0" },
@@ -100,7 +105,7 @@ static const char config_usage[] =
 "    -v <value>     specify value (needed for -s)\n"
 "    -h             display this message\n";
 
-void usage(void)
+static void usage(void)
 {
 	printf("%s", config_usage);
 	exit(0);
@@ -122,8 +127,14 @@ static void check_file(struct sbuf *f, const char *filename)
 		die("no filename specified");
 	sbuf_cpy(f, filename);
 	sbuf_expand_tilde(f);
-	if (stat(f->buf, &sb))
-		die("cannot stat file (%s)", f->buf);
+
+	/* if file does not exist, we create it */
+	if (stat(f->buf, &sb)) {
+		static const char * const command[] = { "jgmenu_run", "init",
+							NULL };
+
+		spawn_sync(command);
+	}
 }
 
 static void amend(const char *filename)
@@ -137,7 +148,7 @@ static void amend(const char *filename)
 	for (o = options; o->key; o++) {
 		if (!set_key_exists(o->key)) {
 			info("add '%s = %s'", o->key, o->value);
-			set_set(o->key, o->value);
+			set_set(o->key, o->value, 1);
 		}
 	}
 	set_write(f.buf);
@@ -152,8 +163,17 @@ static void set_key_value_pair(const char *filename, const char *key,
 	sbuf_init(&f);
 	check_file(&f, filename);
 	set_read(f.buf);
-	set_set(key, value);
+
+	/*
+	 * Aborting at this point if the key/value pair is already set
+	 * correctly, avoid updating the config file and thereby indirectly
+	 * avoids restarting jgmenu too.
+	 */
+	if (set_is_already_set_correctly(key, value))
+		goto out;
+	set_set(key, value, 0);
 	set_write(f.buf);
+out:
 	xfree(f.buf);
 }
 
