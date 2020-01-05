@@ -18,6 +18,7 @@
 #include "util.h"
 #include "watch.h"
 #include "config.h"
+#include "banned.h"
 
 static const char * const files_to_watch[] = {
 	"~/.config/jgmenu/jgmenurc",

@@ -23,17 +23,15 @@ die () {
 }
 
 usage () {
-	printf '%b' "\
-usage: jgmenu_run themes <theme>_<mode>\n\
-Output config files for themes\n\
-<mode> is one of config, prepend and append\n" >&2
+	printf '%b' "Usage: jgmenu_run themes <theme>_<mode>
+Output config files for themes
+<mode> is one of config, prepend and append" >&2
 	exit 0
 }
 
 archlabs_1803_config () {
 cat <<'EOF'
 stay_alive           = 1
-csv_cmd              = pmenu
 tint2_look           = 0
 position_mode        = fixed
 terminal_exec        = termite
@@ -126,7 +124,6 @@ bunsenlabs_lithium_config () {
 cat <<'EOF'
 tint2_look          = 0
 at_pointer          = 1
-csv_cmd             = lx
 menu_width          = 134
 menu_padding_top    = 24
 menu_padding_right  = 0
@@ -174,7 +171,7 @@ File Manager,bl-file-manager
 Text Editor,bl-text-editor
 Media Player,bl-media-player
 ^sep()
-Applications,^checkout(lx-apps)
+Applications,^checkout(apps)
 ^sep()
 BL Utilities,^checkout(bl-utilities)
 Places,^pipe(jgmenu_run ob --cmd="bl-places-pipemenu" --tag="bl-places-pipemenu")
@@ -289,7 +286,7 @@ Edit Debian Alternatives,galternatives
 About Bunsen Alternatives,yad --button="OK":0 --center --window-icon=distributor-logo-bunsenlabs --text-info --title="About Bunsen Alternatives" --filename="/usr/share/bunsen/docs/helpfile-bl-alternatives.txt" --width=900 --height=700 --fontname=Monospace
 
 
-^tag(lx-apps)
+^tag(apps)
 EOF
 }
 
@@ -298,8 +295,8 @@ cat <<'EOF'
 tint2_look           = 0
 columns              = 2
 menu_width           = 500
-menu_height_min      = 480
-menu_height_max      = 480
+menu_height_min      = 470
+menu_height_max      = 470
 menu_padding_top     = 50
 menu_padding_right   = 40
 menu_padding_bottom  = 40
@@ -309,7 +306,7 @@ menu_border          = 0
 menu_halign          = center
 menu_valign          = center
 item_margin_y        = 5
-item_height          = 30
+item_height          = 46
 item_padding_x       = 8
 item_radius          = 0
 item_border          = 2
@@ -324,7 +321,8 @@ color_sel_bg         = #8fa1b3 0
 color_sel_fg         = #ffffff 100
 color_sel_border     = #111111 100
 color_sep_fg         = #919BA0 40
-csv_no_dirs         = 1
+csv_no_dirs          = 1
+csv_name_format      = %n\n<span size="x-small">%g</span>
 EOF
 }
 
@@ -338,7 +336,6 @@ EOF
 
 col3_config () {
 cat <<'EOF'
-csv_cmd = apps
 position_mode = center
 columns = 3
 menu_width = 650
@@ -355,6 +352,7 @@ menu_border = 4
 color_menu_bg = #000000 65
 color_menu_border = #eeeeee 20
 csv_no_dirs = 1
+csv_name_format = %n
 EOF
 }
 
@@ -391,7 +389,7 @@ cat <<'EOF'
 @icon,,30,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/bookmark-new.svg
 
 # Icon 2
-@rect,^root(pmenu),85,40,42,42,2,left,top,#000000 0,#000000 0,
+@rect,^root(apps),85,40,42,42,2,left,top,#000000 0,#000000 0,
 @icon,,90,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/view-list-icons.svg
 
 # Icon 3
@@ -402,7 +400,7 @@ cat <<'EOF'
 @rect,^root(exit),205,40,42,42,2,left,top,#000000 0,#000000 0,
 @icon,,210,45,32,32,2,left,top,#e6e6e6 100,#444444 90,/usr/share/icons/breeze/actions/32/system-log-out.svg
 
-^tag(pmenu)
+^tag(apps)
 EOF
 }
 

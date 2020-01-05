@@ -11,6 +11,7 @@
 #include "xdgdirs.h"
 #include "list.h"
 #include "util.h"
+#include "banned.h"
 
 #define DEBUG_PRINT_FINAL_SELECTION 0
 #define DEBUG_PRINT_ALL_HITS 0		/* regardless of size */

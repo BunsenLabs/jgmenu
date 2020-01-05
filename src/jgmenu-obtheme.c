@@ -17,6 +17,7 @@
 #include "sbuf.h"
 #include "compat.h"
 #include "set.h"
+#include "banned.h"
 
 static char obtheme[80];
 

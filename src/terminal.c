@@ -4,6 +4,7 @@
 
 #include "isprog.h"
 #include "terminal.h"
+#include "banned.h"
 
 static char *terminals[] = { "x-terminal-emulator", "terminator", "uxterm",
 			     "xterm", "gnome-terminal", "lxterminal",

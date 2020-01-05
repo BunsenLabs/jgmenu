@@ -3,6 +3,7 @@
  * Generic implementation of hash-based key value mappings.
  */
 #include "hashmap.h"
+#include "banned.h"
 
 #define FNV32_BASE ((unsigned int)0x811c9dc5)
 #define FNV32_PRIME ((unsigned int)0x01000193)

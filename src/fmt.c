@@ -3,6 +3,7 @@
 
 #include "sbuf.h"
 #include "fmt.h"
+#include "banned.h"
 
 /*
  * %n - application name

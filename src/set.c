@@ -12,6 +12,7 @@
 #include "sbuf.h"
 #include "compat.h"
 #include "set.h"
+#include "banned.h"
 
 #define strsiz (1000)
 struct entry {

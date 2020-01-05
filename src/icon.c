@@ -24,6 +24,7 @@
 #include "cache.h"
 #include "config.h"
 #include "icon.h"
+#include "banned.h"
 
 #define DEBUG_THEMES 0
 

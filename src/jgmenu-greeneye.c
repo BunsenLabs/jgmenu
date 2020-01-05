@@ -5,19 +5,20 @@
 #include "compat.h"
 #include "sbuf.h"
 #include "util.h"
+#include "banned.h"
 
 static int ah = 40;
 static int bw = 150;
 static int cw = 300;
 static int ch = 470;
 static int pad = 4;
-static int item_height = 30;
+static int item_height = 35;
 
 static char *categories[] = {
 	"All:*",
 	"Accessories:#Accessories #Util #Archiving #Compression #TextEditor ",
 	"Development:#Development #Build #Debug #IDE #Profiling #RevisionControl ",
-	"Games:#Games ",
+	"Games:#Game ",
 	"Graphics:#Graphics #Scanning #Photography ",
 	"Internet:#Internet #Network #Email #FileTransfer #WebBrowser ",
 	"Multimedia:#Multimedia #Player #Audio #Video #Recorder ",
@@ -62,8 +63,9 @@ static void print_categories(void)
 		strlcpy(buf, categories[i], sizeof(buf));
 		buf[1023] = '\0';
 		p = strchr(buf, ':');
-		if (p)
-			*p = '\0';
+		if (!p)
+			continue;
+		*p = '\0';
 		++p;
 		printf("@rect,^filter(%s),%d,%d,%d,%d,2,left,top,#000000 0,#000000 0,\n",
 		       p, pad, y, bw - pad * 2, item_height);

@@ -4,6 +4,7 @@
 
 #include "util.h"
 #include "sbuf.h"
+#include "banned.h"
 
 static int info_muted;
 
