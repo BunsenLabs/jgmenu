@@ -5,6 +5,7 @@
 #include "t2conf.h"
 #include "config.h"
 #include "gtkconf.h"
+#include "banned.h"
 
 void theme_set(struct sbuf *theme)
 {

@@ -8,6 +8,7 @@
 #include "isprog.h"
 #include "list.h"
 #include "compat.h"
+#include "banned.h"
 
 struct path_segment {
 	char *path;

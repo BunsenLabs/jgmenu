@@ -9,6 +9,7 @@
 #include "sbuf.h"
 #include "xsettings-helper.h"
 #include "xsettings.h"
+#include "banned.h"
 
 static void print_setting(struct xsetting *setting)
 {

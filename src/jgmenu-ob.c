@@ -15,6 +15,7 @@
 #include "sbuf.h"
 #include "list.h"
 #include "i18n.h"
+#include "banned.h"
 
 static const char reconfigure_command[] = "openbox --reconfigure";
 static const char restart_command[] = "openbox --restart";

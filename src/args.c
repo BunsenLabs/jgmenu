@@ -6,6 +6,7 @@
 #include "args.h"
 #include "config.h"
 #include "util.h"
+#include "banned.h"
 
 static char *checkout;
 static char *csv_file;
@@ -17,9 +18,11 @@ void args_exec_commands(int argc, char **argv)
 {
 	if (argc < 2)
 		return;
-	if (!strcmp(argv[1], "init"))
+	if (!strcmp(argv[1], "init")) {
+		warn("prefer 'jgmenu_run init' to 'jgmenu init'");
 		if (execvp("jgmenu_run", argv) < 0)
 			die("cannot exec jgmenu_run");
+	}
 }
 
 void args_parse(int argc, char **argv)

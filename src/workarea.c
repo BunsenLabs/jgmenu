@@ -7,6 +7,7 @@
 #include "geometry.h"
 #include "config.h"
 #include "align.h"
+#include "banned.h"
 
 static enum alignment panel_pos = UNKNOWN;
 static int margin_x;
