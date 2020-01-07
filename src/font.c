@@ -7,6 +7,7 @@
 #include "gtkconf.h"
 #include "sbuf.h"
 #include "util.h"
+#include "banned.h"
 
 static struct sbuf font;
 static int font_has_been_set;

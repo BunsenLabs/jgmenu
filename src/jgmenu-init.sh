@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# 'jgmenu init' creates/updates jgmenurc
+# 'jgmenu_run init' creates/updates jgmenurc
 #
 
 config_file=~/.config/jgmenu/jgmenurc
@@ -32,45 +32,45 @@ available_themes="\
 JGMENU_EXEC_DIR=$(jgmenu_run --exec-path)
 
 say () {
-	printf "%b\n" "$@"
+	printf '%b\n' "$@"
 }
 
 warn () {
-	printf "warn: %b\n" "$@"
+	printf 'warn: %b\n' "$@"
 }
 
 die () {
-	printf "fatal: %b\n" "$@"
+	printf 'fatal: %b\n' "$@"
 	exit 1
 }
 
 verbose_info () {
 	test "$verbose" = "t" || return
-	printf "info: %b\n" "$@"
+	printf 'info: %b\n' "$@"
 }
 
 isinstalled () {
-	which "$1" >/dev/null 2>&1
+	type "$1" >/dev/null 2>&1
 }
 
 usage () {
-	say "\
-usage: jgmenu init [<options>]\n\
-       jgmenu init [--config-file=<file>] --regression-check\n\
-Create/amend/check config files\n\
-Options include:\n\
-    -h|--help             Display this message\n\
-    -i|--interactive      Enter interactive mode\n\
-    --config-file=<file>  Specify config file\n\
-    --theme=<theme>       Create config file with a particular theme\n\
-    --list-themes         Display all available themes\n\
-    --regression-check    Only check for config options no longer valid\n\
-    --apply-obtheme       Apply current openbox theme to menu\n\
-    --verbose             Be more verbose\n"
+	say "Usage: jgmenu_run init [<options>]
+       jgmenu_run init [--config-file=<file>] --regression-check
+Create/amend/check config files
+Options include:
+    -h|--help             Display this message
+    -i|--interactive      Enter interactive mode
+    --config-file=<file>  Specify config file
+    --theme=<theme>       Create config file with a particular theme
+    --list-themes         Display all available themes
+    --regression-check    Only check for config options no longer valid
+    --apply-obtheme       Apply current openbox theme to menu
+    --apply-gtktheme      Apply gtk theme (optional package)
+    --verbose             Be more verbose"
 }
 
 append__add () {
-	printf "%b\n" "$@" >>"${append_file}"
+	say "$@" >>"${append_file}"
 }
 
 append__sep () {
@@ -131,11 +131,11 @@ prepend__browsers="firefox iceweasel chromium midori"
 prepend__file_managers="pcmanfm thunar nautilus caja"
 
 prepend__add () {
-	printf "%b\n" "$@" >>"${prepend_file}"
+	say "$@" >>"${prepend_file}"
 }
 
 prepend__add_sep () {
-	if grep -i "\^sep(" ${prepend_file} >/dev/null 2>&1
+	if grep -i '^sep(' ${prepend_file} >/dev/null 2>&1
 	then
 		say "prepend.csv already contains a separator"
 		return
@@ -160,7 +160,7 @@ prepend__add_terminal () {
 		if isinstalled "${x}"
 		then
 			prepend__add "Terminal,${x},utilities-terminal"
-			printf "Prepend %b\n" "${x}"
+			printf 'Prepend %b\n' "${x}"
 			break
 		fi
 	done
@@ -180,7 +180,7 @@ prepend__add_browser () {
 		if isinstalled "${x}"
 		then
 			prepend__add "Browser,${x},${x}"
-			printf "Prepend %b\n" "${x}"
+			printf 'Prepend %b\n' "${x}"
 			break
 		fi
 	done
@@ -200,7 +200,7 @@ prepend__add_file_manager () {
 		if isinstalled "${x}" >/dev/null 2>&1
 		then
 			prepend__add "File manager,${x},system-file-manager"
-			printf "Prepend %b\n" "${x}"
+			printf 'Prepend %b\n' "${x}"
 			break
 		fi
 	done
@@ -287,7 +287,7 @@ unicode files are not XDG compliant and may give unpredicted results"
 icon_theme_last_used_by_jgmenu () {
 	icon_theme=$(grep -i 'Inherits' ~/.cache/jgmenu/icons/index.theme)
 	icon_size=$(grep -i 'Size' ~/.cache/jgmenu/icons/index.theme)
-	printf "last time, icon-theme '%s-%s' was used\n" "${icon_theme#Inherits=}" \
+	printf 'last time, icon-theme %s-%s was used\n' "${icon_theme#Inherits=}" \
 		"${icon_size#Size=}"
 }
 
@@ -302,7 +302,7 @@ get_icon_theme () {
 print_available_themes () {
 	for t in ${available_themes}
 	do
-		printf "%b\n" "${t}"
+		say "${t}"
 	done
 }
 
@@ -343,15 +343,7 @@ fallback_if_no_openbox () {
 	# not all systems support openbox menus
 	if ! test -e ~/.config/openbox/menu.xml
 	then
-		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
-	fi
-}
-
-fallback_if_no_lx () {
-	# not all systems support the lx module
-	if ! lx_installed
-	then
-		jgmenu_run config -s "${config_file}" -k csv_cmd -v pmenu
+		jgmenu_run config -s "${config_file}" -k csv_cmd -v apps
 	fi
 }
 
@@ -377,7 +369,6 @@ set_theme () {
 	bunsenlabs_lithium)
 		jgmenu_run themes bunsenlabs_lithium_config >"${config_file}"
 		jgmenu_run themes bunsenlabs_lithium_prepend >"${prepend_file}"
-		fallback_if_no_lx
 		;;
 	neon)
 		jgmenu_run themes neon_config >"${config_file}"
@@ -465,18 +456,17 @@ initial_checks () {
 #u, undo    = revert back to previous set of config files\n\
 #y, polybar = sync with polybar settings
 print_commands () {
-	printf "%b" "\
-*** commands ***\n\
-a, append    = add items at bottom of root-menu (e.g. lock and exit)\n\
-c, check     = run a number of jgmenu related checks on system\n\
+	say "*** commands ***
+a, append    = add items at bottom of root-menu (e.g. lock and exit)
+c, check     = run a number of jgmenu related checks on system
 g, gtktheme  = apply gtk theme (optional package)
 h, help      = show this message
-m, missing   = add any missing config options to config file\n\
+m, missing   = add any missing config options to config file
 o, obtheme   = apply openbox theme
-p, prepend   = add items at top of root-menu (e.g. web browser and terminal)\n\
-q, quit      = quit init process\n\
-R, reset     = delete all config files and create a default jgmenurc\n\
-t, theme     = create config files based on templates\n"
+p, prepend   = add items at top of root-menu (e.g. web browser and terminal)
+q, quit      = quit init process
+R, reset     = delete all config files and create a default jgmenurc
+t, theme     = create config files based on templates"
 }
 
 prompt () {
@@ -570,7 +560,7 @@ do
 		exit 0
 		;;
 	*)
-		printf "fatal: unknown option: '%s'\n" "$1"
+		printf 'fatal: unknown option: %s\n' "$1"
 		usage
 		exit 1
 		;;
@@ -585,6 +575,6 @@ if test "${interactive}" = "t"
 then
 	await_user_command
 else
-	say "Run 'jgmenu init -h' for usage message"
-	say "Run 'jgmenu init -i' to enter interactive mode"
+	say "Run 'jgmenu_run init -h' for usage message"
+	say "Run 'jgmenu_run init -i' to enter interactive mode"
 fi

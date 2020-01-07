@@ -8,6 +8,7 @@
 
 #include "cache.h"
 #include "util.h"
+#include "banned.h"
 
 #define CACHE_LOCATION "~/.cache/jgmenu/icons"
 static struct sbuf *cache_location;
@@ -241,6 +242,6 @@ int cache_create_symlink(char *path, char *name)
 
 void cache_atexit_cleanup(void)
 {
-	free(cache_location->buf);
-	free(cache_location);
+	xfree(cache_location->buf);
+	xfree(cache_location);
 }

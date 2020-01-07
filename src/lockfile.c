@@ -5,6 +5,7 @@
 
 #include "lockfile.h"
 #include "sbuf.h"
+#include "banned.h"
 
 #define LOCKFILE ".jgmenu-lockfile"
 static struct sbuf lockfile;

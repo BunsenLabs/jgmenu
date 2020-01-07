@@ -1,5 +1,6 @@
 #include "argv-buf.h"
 #include "util.h"
+#include "banned.h"
 
 void argv_init(struct argv_buf *buf)
 {

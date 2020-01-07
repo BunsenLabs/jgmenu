@@ -4,6 +4,7 @@
 #include "unix_sockets.h"
 #include "socket.h"
 #include "util.h"
+#include "banned.h"
 
 int main(int argc, char **argv)
 {

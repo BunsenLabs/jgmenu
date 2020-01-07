@@ -27,6 +27,7 @@
 #include "x11-ui.h"
 #include "util.h"
 #include "config.h"
+#include "banned.h"
 
 struct UI *ui;
 

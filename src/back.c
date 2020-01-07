@@ -5,6 +5,7 @@
 
 #include "util.h"
 #include "back.h"
+#include "banned.h"
 
 static char *back_str;
 
@@ -69,6 +70,7 @@ static struct back_lookup_table back_lookup_table[] = {
 	{ "zh", "后退" },
 	{ NULL, NULL }
 };
+
 /* clang-format on */
 
 static int get_lang(char *b)

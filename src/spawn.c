@@ -7,6 +7,7 @@
 #include "spawn.h"
 #include "util.h"
 #include "sbuf.h"
+#include "banned.h"
 
 /* voids zombie processes */
 static void set_no_child_wait(void)

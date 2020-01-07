@@ -1,42 +1,52 @@
-Contributing
-============
+# Contributing
 
-First of all, thanks for contributing or considering to contribute.  
+- [Introduction](#introduction)
+- [Reporting issues and bugs](#reporting-issues-and-bugs)
+- [Debugging](#debugging)
+- [Upversion](#upversion)
+- [Add new config variables](#add-new-config-variables)
+- [Testing](#testing)
+- [Architecture](#architecture)
+- [Grammar and Language](#grammar-and-language)
+- [Git](#git)
+- [Overview of src/ files](#overview-of-src-files)
+- [Stack Traces](#stack-traces)
 
-We have two high level development rules:  
+## Introduction
 
--   Friendship, ideas and code are valued in said order  
--   There are no deadlines  
+First of all, thanks for contributing or considering to contribute.
 
-Issues and bugs
----------------
+We have two high level development rules:
 
-Reporting issues and bugs is a very helpful contribution. The preferred
-route for reporting these is to raise github issues, but we are happy
-with any method including forums threads and e-mails. If you are able
-to help resolve them, that is also greatly appreciated.
+- Friendship, ideas and code are valued in said order
+- There are no deadlines
 
-### The basics of reporting issues
+## Reporting issues and bugs
 
-It would be useful if you could simply start by describing what you did
-and what happened. It may help if you could also do the following:
+Reporting issues and bugs is a very helpful contribution. The preferred route
+for reporting these is to raise github issues, but we are happy with any method
+including forums threads and e-mails. If you are able to help resolve them,
+that is also greatly appreciated.
 
-1.  Run jgmenu from the terminal and copy/paste any output
+It would be useful if you could simply start by describing what you did and
+what happened. It may help if you could also do the following:
 
-2.  Provide the output of `jgmenu --version`
+1. Run jgmenu from the terminal and copy/paste any output
 
-3.  Provide the output of `type jgmenu` (i.e. the location of the binary)
+2. Provide the output of `jgmenu --version`
 
-4.  Provide the command you used to run jgmenu
+3. Provide the output of `type jgmenu` (i.e. the location of the binary)
 
-5.  Provide the config file
+4. Provide the command you used to run jgmenu
 
-6.  Provide some basic information about your system (e.g. distribution, window
-    manager, composite manager)
+5. Provide the config file
 
-7.  Run `jgmenu init -i` then choose 'check' and report any warnings
+6. Provide some basic information about your system (e.g. distribution, window
+   manager, composite manager)
 
-### Debugging
+7. Run `jgmenu_run init -i` then choose 'check' and report any warnings
+
+## Debugging
 
 This list is by no means exhaustive, but may provide some ideas for
 things to try.
@@ -70,13 +80,90 @@ things to try.
    environment variables which can be set for verbose output relating to
    specific topics.
 
-### Stack traces
+## Upversion
 
-If jgmenu crashes with the message 'Segmentation fault' or 'Abort', a
-stack trace (also known as backtrace) is often the most useful starting
-point.  A stack trace tells us where the program stopped and how that
-point was reached through all the functions up to main(). A useful stack
-trace provides filenames and line numbers.
+- update `default_version` in scripts/version-gen.sh
+- run `dch` and update debian/changelog
+- create docs/relnotes/X.Y.txt
+- update NEWS.md
+- add and commit the above files
+- git tag -a 'vX.Y' (using the release notes as the commit message)
+
+## Add new config variables
+
+Any new config variables need to be added to the following:
+
+-   config.c
+-   config.h
+-   src/jgmenu-config.c
+-   docs/manual/jgmenu.1.md
+
+## Testing
+
+- `make ex` to launch a few menus specifically designed to test various
+  features.
+
+- `make check` to check coding style and perform some static analysis on all
+  files in `src/`. Files can be checked on an individual basis by running
+  `./scripts/check <file>`
+
+- `make test` to run unit tests
+
+## Architecture
+
+`jgmenu_run <command>` is a wrapper script which calls `jgmenu-<command>`.
+
+This architecture is inspired by git and has a number of advantages over
+putting all `jgmenu-<command>` in `$prefix/bin`:
+
+- It ensures that the correct module is called if multiple version of jgmenu
+  are installed on the system.
+- It avoids putting programs, that are not meant to be called by the user, in
+  `$prefix/bin`.
+- It saves the user having to remember script file extensions whilst making
+  it simple for the developer to know which are binary, shell, python, etc.
+
+## Grammar and Language
+
+jgmenu is always written with a lowercase "j". It should be obvious from
+the context if we refer to the entire application or just the binary
+file.
+
+The language used in documentation shall follow British English rules.
+Although, for variable names and configuration options, US spelling is
+used (e.g. color and center)
+
+## Git
+
+Keep commit messages lines to 74 characters.
+
+## Overview of src/ files
+
+jgmenu.c
+- x11-ui.c - interface with X11
+- icon.c - load icons
+  * cache.c - manage icon cache on harddisk
+  * icon-find.c - find icons
+  * xpm-loader.c - load xpm icons (png/svg use cairo)
+- config.c - read config file
+- geometry.c - calculate positions and dimensions
+- filter.c - search support
+- theme.c + font.c - set icon theme and font from xsettings, tint2rc, etc
+  * xsettings-helper.c - read xsettings variables
+  * gtkconf.c - read gtk3.0 config file variables
+
+jgmenu-apps.c
+- desktop.c - parse desktopp files
+
+jgmenu-ob.c
+
+## Stack traces
+
+If jgmenu crashes with the message 'Segmentation fault' or 'Abort', a stack
+trace (also known as backtrace) is often the most useful starting point.  A
+stack trace tells us where the program stopped and how that point was reached
+through all the functions up to main(). A useful stack trace provides filenames
+and line numbers.
 
 You can provide a stack trace using one of the methods listed below.
 
@@ -165,79 +252,3 @@ you can run the following and include the output in your bug report.
 
    sudo coredumpctl info jgmenu
 
-Upversion
----------
-
--   update `default_version` in scripts/version-gen.sh  
--   update debian/changelog  
--   create docs/relnotes/X.Y.txt  
--   update NEWS.md  
--   add and commit the above files  
--   git tag -a 'vX.Y' (using the release notes as the commit message)  
-
-Add new config variables
-------------------------
-
-Any new config variables need to be added to the following:  
-
--   config.c  
--   config.h  
--   src/jgmenu-config.c  
--   docs/manual/jgmenu.1.md  
-
-Run ./scripts/jgmenurc-checker.sh
-
-Testing
--------
-
-`make ex` runs a few menus specifically designed to test the code.  
-
-`make check` checks coding style.  
-To just check a specific .c or .h file, do  
-`./scripts/checkpatch-wrapper foo.c`  
-
-`make test` runs unit tests  
-
-APIs
-----
-
-list.h  
-https://kernelnewbies.org/FAQ/LinkedLists  
-
-hashmap.c  
-https://www.kernel.org/pub/software/scm/git/docs/technical/api-hashmap.html  
-
-Architecture
-------------
-
-`jgmenu_run` is a wrapper which call jgmenu-\<*command*> where `command`
-is the first argument provided to `jgmenu_run`.  
-
-`jgmenu_run` makes jgmenu easier to use by  
-
--   creating a simple interface for common commands  
--   saving the user having to remember script file extensions  
--   ensures the correct modules are called if multiple version of jgmenu are
-    installed on the system.  
-
-It also helps keep $prefix/bin tidier by putting all the other scripts in
-$libexecdir.
-
-Although it is recommended to do a `make install`, it is possible to run
-`./jgmenu_run` from the source directory by setting `JGMENU_EXEC_PATH`.  
-
-Grammar and Language
---------------------
-
-jgmenu is always written with a lowercase "j". It should be obvious from
-the context if we refer to the entire application or just the binary
-file.  
-
-The language used in documentation shall follow British English rules.
-Although, for variable names and configuration options, US spelling is
-used (e.g. color and center)  
-
-Git
----
-
-Keep commit messages lines to 74 characters.  

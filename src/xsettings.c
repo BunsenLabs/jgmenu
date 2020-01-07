@@ -21,14 +21,15 @@
  * Author:  Owen Taylor, Red Hat, Inc.
  */
 
-#include "xsettings.h"
-
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "xpm-loader.h"
+#include "xsettings.h"
 #include "util.h"
+#include "banned.h"
 
 struct xsettings_buffer {
 	char byte_order;

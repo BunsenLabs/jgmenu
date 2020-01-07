@@ -17,6 +17,8 @@
 #include "list.h"
 #include "charset.h"
 #include "compat.h"
+#include "lang.h"
+#include "banned.h"
 
 static struct app *apps;
 static int nr_apps, alloc_apps;
@@ -37,6 +39,16 @@ static void format_exec(char *s)
 static void parse_line(char *line, struct app *app, int *is_desktop_entry)
 {
 	char *key, *value;
+	static char *name_ll, *name_ll_cc, *gname_ll, *gname_ll_cc;
+
+	/*
+	 * Set to "Name[<ll>]", "Name[<ll_CC>]" and the equivalent for
+	 * GenericName
+	 */
+	if (!name_ll) {
+		lang_localized_name_key(&name_ll, &name_ll_cc);
+		lang_localized_gname_key(&gname_ll, &gname_ll_cc);
+	}
 
 	/* We only read the [Desktop Entry] section of a .desktop file */
 	if (line[0] == '[') {
@@ -50,17 +62,35 @@ static void parse_line(char *line, struct app *app, int *is_desktop_entry)
 
 	if (!parse_config_line(line, &key, &value))
 		return;
-	if (!strcmp("Name", key))
+	if (!strcmp("Name", key)) {
 		app->name = strdup(value);
-	else if (!strcmp("Exec", key))
+	} else if (!strcmp("GenericName", key)) {
+		app->generic_name = strdup(value);
+	} else if (!strcmp("Exec", key)) {
 		app->exec = strdup(value);
-	else if (!strcmp("Icon", key))
+	} else if (!strcmp("Icon", key)) {
 		app->icon = strdup(value);
-	else if (!strcmp("Categories", key))
+	} else if (!strcmp("Categories", key)) {
 		app->categories = strdup(value);
-	else if (!strcmp("NoDisplay", key))
+	} else if (!strcmp("NoDisplay", key)) {
 		if (!strcasecmp(value, "true"))
-			app->nodisplay = 1;
+			app->nodisplay = true;
+	} else if (!strcmp("Terminal", key)) {
+		if (!strcasecmp(value, "true"))
+			app->terminal = true;
+	}
+
+	/* localized name */
+	if (!strcmp(key, name_ll_cc))
+		app->name_localized = xstrdup(value);
+	if (!app->name_localized && !strcmp(key, name_ll))
+		app->name_localized = xstrdup(value);
+
+	/* localized generic name */
+	if (!strcmp(key, gname_ll_cc))
+		app->generic_name_localized = xstrdup(value);
+	if (!app->generic_name_localized && !strcmp(key, gname_ll))
+		app->generic_name_localized = xstrdup(value);
 }
 
 bool is_duplicate_desktop_file(char *filename)
@@ -85,6 +115,12 @@ static void strdup_null_variables(struct app *app)
 {
 	if (!app->name)
 		app->name = strdup("");
+	if (!app->name_localized)
+		app->name_localized = strdup("");
+	if (!app->generic_name)
+		app->generic_name = strdup("");
+	if (!app->generic_name_localized)
+		app->generic_name_localized = strdup("");
 	if (!app->exec)
 		app->exec = strdup("");
 	if (!app->icon)
@@ -95,12 +131,9 @@ static void strdup_null_variables(struct app *app)
 		app->filename = strdup("");
 }
 
-static int add_app(FILE *fp, char *filename)
+static struct app *grow_vector_by_one_app(void)
 {
-	char line[4096];
-	char *p;
 	struct app *app;
-	int is_desktop_entry;
 
 	if (nr_apps == alloc_apps) {
 		alloc_apps = (alloc_apps + 16) * 2;
@@ -109,7 +142,17 @@ static int add_app(FILE *fp, char *filename)
 	app = apps + nr_apps;
 	memset(app, 0, sizeof(*app));
 	nr_apps++;
+	return app;
+}
 
+static int add_app(FILE *fp, char *filename)
+{
+	char line[4096];
+	char *p;
+	struct app *app;
+	int is_desktop_entry;
+
+	app = grow_vector_by_one_app();
 	is_desktop_entry = 0;
 	while (fgets(line, sizeof(line), fp)) {
 		if (line[0] == '\0')
@@ -180,11 +223,6 @@ static int compare_app_name(const void *a, const void *b)
 	return strcasecmp(aa->name, bb->name);
 }
 
-int desktop_nr_apps(void)
-{
-	return nr_apps;
-}
-
 struct app *desktop_read_files(void)
 {
 	struct list_head xdg_data_dirs;
@@ -207,5 +245,8 @@ struct app *desktop_read_files(void)
 	}
 	qsort(apps, nr_apps, sizeof(struct app), compare_app_name);
 	xfree(s.buf);
+
+	/* NULL terminate vector */
+	(void *)grow_vector_by_one_app();
 	return apps;
 }
