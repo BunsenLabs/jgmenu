@@ -1,3 +1,9 @@
+jgmenu (4.0.1+bl9-1) stretch-backports; urgency=medium
+
+  * New upstream release.
+
+ -- Jens John <dev@2ion.de>  Sun, 19 Jan 2020 23:30:29 +0100
+
 jgmenu (4.0+bl9-2) stretch-backports; urgency=medium
 
   * Non-maintainer upload.
@@ -6,6 +12,12 @@ jgmenu (4.0+bl9-2) stretch-backports; urgency=medium
  -- Jens John <dev@2ion.de>  Sun, 05 Jan 2020 20:44:29 +0100
 
 jgmenu (4.0+bl9-1) stretch-backports; urgency=medium
+
+  * New upstream release
+
+ -- Johan Malm <jgm323@gmail.com>  Sun, 19 Jan 2020 21:08:29 +0000
+
+jgmenu (4.0-1) unstable; urgency=medium
 
   * New upstream release
   * Add configure script
