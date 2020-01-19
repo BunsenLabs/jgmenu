@@ -1,4 +1,10 @@
-jgmenu (4.0+bl10-1) lithium; urgency=medium
+jgmenu (4.0.1+bl10-1) lithium; urgency=medium
+
+  * New upstream release
+
+ -- Johan Malm <jgm323@gmail.com>  Sun, 19 Jan 2020 21:08:29 +0000
+
+jgmenu (4.0-1) unstable; urgency=medium
 
   * New upstream release
   * Add configure script
