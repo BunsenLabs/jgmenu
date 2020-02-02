@@ -1,17 +1,10 @@
-jgmenu (4.0.1+bl9-1) stretch-backports; urgency=medium
+jgmenu (4.0.2+bl9-1) stretch-backports; urgency=medium
 
-  * New upstream release.
+  * New upstream release
 
- -- Jens John <dev@2ion.de>  Sun, 19 Jan 2020 23:30:29 +0100
+ -- Johan Malm <jgm323@gmail.com>  Sun, 02 Feb 2020 21:28:47 +0000
 
-jgmenu (4.0+bl9-2) stretch-backports; urgency=medium
-
-  * Non-maintainer upload.
-  * debian/rules: disable build of LX on Debian 9
-
- -- Jens John <dev@2ion.de>  Sun, 05 Jan 2020 20:44:29 +0100
-
-jgmenu (4.0+bl9-1) stretch-backports; urgency=medium
+jgmenu (4.0.1-1) unstable; urgency=medium
 
   * New upstream release
 
