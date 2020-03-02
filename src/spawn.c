@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <glib.h>
 
 #include "spawn.h"
 #include "util.h"
@@ -37,7 +38,7 @@ static void resolve_and_chdir(const char *working_dir)
 	xfree(s.buf);
 }
 
-void spawn(const char *arg, const char *working_dir)
+void spawn_async(const char *arg, const char *working_dir)
 {
 	const char default_shell[] = "/bin/sh";
 	const char *shell = NULL;
@@ -91,3 +92,33 @@ void spawn_sync(const char * const*command)
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
 }
+
+static void print_argv(gchar **argv)
+{
+	printf("spawn ");
+	for (; *argv; argv++)
+		printf("%s ", *argv);
+	printf("\n");
+}
+
+void spawn_async_no_shell(char const *cmd, char const *workdir)
+{
+	GError *err = NULL;
+	gchar **argv = NULL;
+
+	g_shell_parse_argv((gchar *)cmd, NULL, &argv, &err);
+	if (err) {
+		fprintf(stderr, "error parsing command\n");
+		g_error_free(err);
+		return;
+	}
+	print_argv(argv);
+	g_spawn_async((gchar *)workdir, argv, NULL, G_SPAWN_SEARCH_PATH, NULL,
+		      NULL, NULL, &err);
+	if (err) {
+		fprintf(stderr, "error spawning command %s\n", cmd);
+		g_error_free(err);
+	}
+	g_strfreev(argv);
+}
+

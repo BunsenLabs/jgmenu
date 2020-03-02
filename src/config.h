@@ -88,6 +88,7 @@ struct config {
 	int csv_single_window;
 	int csv_no_dirs;
 	char *csv_i18n;
+	int csv_no_duplicates;
 };
 
 extern struct config config;
