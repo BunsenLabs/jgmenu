@@ -1,6 +1,6 @@
 % JGMENU(1)
 % Johan Malm
-% 4 January, 2019
+% 19 February, 2020
 
 # NAME
 
@@ -327,7 +327,7 @@ Global config variables are set in the following order (i.e. bottom
 of list has higher precedence):
 
 - built-in defaults (config.c)  
-- tint2rc config file (can be specified by `TINT2_CONFIG` environment variable  
+- tint2rc config file (can be specified by `TINT2_CONFIG` environment variable)  
 - jgmenurc config file (can be specified by --config-file=)  
 - command line arguments  
 
@@ -384,7 +384,7 @@ Here follow some specific types:
 
     Additional specific topics: (4) IPC
 
-    Note: Some IPC messages need environment variable `JGMENU_VERBOSE=4` too
+    Note: Some IPC messages need environment variable `JGMENU_VERBOSITY=4` too
 
 `stay_alive` = __boolean__ (default 1)
 
@@ -398,10 +398,10 @@ Here follow some specific types:
     jgmenu during the boot process and then sending a `killall -SIGUSR1 jgmenu`
     to show the menu.
 
-`csv_cmd` = __string__ (default `pmenu`)
+`csv_cmd` = __string__ (default `apps`)
 
 :   Defines the command to produce the jgmenu flavoured CSV for `jgmenu`.
-    Accpetable keyword include pmenu, lx, apps and ob. If a value is given
+    Accpetable keyword include apps, pmenu, lx, and ob. If a value is given
     other than these keywords, it will be executed in a shell (so be
     careful!). If left blank, jgmenu will read from `stdin`. Examples:
 
@@ -506,15 +506,16 @@ Here follow some specific types:
 
 `menu_height_mode` = (static | dynamic) (default static)
 
-:   `static`
+:   Mode of menu height
 
+    `static`
     :   Height of the initial root menu will be used for any subsequent
         `^root()` action
 
     `dynamic`
 
-    :   Root menu height will be re-calculated every time a new tag is opened
-        using `^root()`.
+    :   Root menu height will be re-calculated every time a new tag is
+        opened using `^root()`.
 
 `menu_padding_top` = __integer__ (default 5)
 
@@ -765,9 +766,12 @@ environment variables which are used by the CSV generators.
 
 `csv_i18n` = __string__ (no default)
 
-:   If set, the ob module will look for a translation file in the
-    specified file or directory. See `jgmenu_run i18n --help` and
-    `jgmenu-ob(1)` for further details.
+:   Look for a translation file in the specified file or directory.
+    See `jgmenu-i18n(1) for further details. Supported by apps and ob.
+
+`csv_no_duplicates` = __boolean__ (default 0)
+
+:   Restrict applications to appear in one directory only. Supported by apps.
 
 # Inter-Process Communication (IPC) {#ipc}
 
@@ -850,12 +854,12 @@ used.
 ╔═╤═╤════════════════╤═╤═╗
 ║ │ │                │ │ ║
 ║ │ ├────────────────┤ │ ║
-║ │ │ @    web      >│ │ ║
+║ │ │icon   text    >│ │ ║
 ║ │ ├────────────────┤ │ ║
 ║2│1│                │1│3║
-║ │ ├───┬─┬────────┬─┤ │ ║
-║ │ │ 4 │5│        │6│ │ ║
-║ │ ├───┴─┴────────┴─┤ │ ║
+║ │ ├────┬─┬───────┬─┤ │ ║
+║ │ │ 4  │5│       │6│ │ ║
+║ │ ├────┴─┴───────┴─┤ │ ║
 ║ │ │                │ │ ║
 ║ │ │                │ │ ║
 ╚═╧═╧════════════════╧═╧═╝

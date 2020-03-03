@@ -15,11 +15,13 @@ include Makefile.inc
 jgmenu:     CFLAGS  += `pkg-config cairo pango pangocairo librsvg-2.0 --cflags`
 jgmenu-ob:  CFLAGS  += `xml2-config --cflags`
 jgmenu-obtheme: CFLAGS  += `xml2-config --cflags`
+jgmenu-config:  CFLAGS  += `pkg-config --cflags glib-2.0`
 
 jgmenu:     LIBS += `pkg-config x11 xrandr cairo pango pangocairo librsvg-2.0 --libs`
 jgmenu:     LIBS += -pthread -lpng
 jgmenu-ob:  LIBS += `xml2-config --libs`
 jgmenu-obtheme: LIBS += `xml2-config --libs`
+jgmenu-config:  LIBS += `pkg-config --libs glib-2.0`
 
 LDFLAGS += $(LIBS)
 
@@ -60,7 +62,7 @@ jgmenu-socket: jgmenu-socket.o util.o sbuf.o unix_sockets.o socket.o compat.o
 jgmenu-i18n: jgmenu-i18n.o i18n.o hashmap.o util.o sbuf.o
 jgmenu-greeneye: jgmenu-greeneye.o compat.o util.o sbuf.o
 jgmenu-apps: jgmenu-apps.o compat.o util.o sbuf.o desktop.o charset.o \
-             xdgdirs.o argv-buf.o dirs.o lang.o fmt.o
+             xdgdirs.o argv-buf.o dirs.o lang.o fmt.o i18n.o hashmap.o
 jgmenu-obtheme: jgmenu-obtheme.o util.o sbuf.o compat.o set.o
 jgmenu-config: jgmenu-config.o util.o sbuf.o compat.o set.o spawn.o
 
