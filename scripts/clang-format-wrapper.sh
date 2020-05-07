@@ -1,6 +1,7 @@
 #!/bin/bash
 
-tmpfile="clang-format-tmpfile"
+tmpfile=".tmp-clang-format"
+g_insitu=f
 
 iterators=(
 	list_for_each_entry
@@ -12,10 +13,12 @@ iterators=(
 )
 
 usage () {
-	printf '%b' "\
-Usage: clang-format-wrapper.sh [<file>]\n\
-Produces diff of changes.\n\
-"
+	printf '%s\n' "\
+Usage: clang-format-wrapper.sh [<options>] <file>...
+Options:
+-h             show help
+-i             make clang-format changes in-situ"
+	exit 0
 }
 
 strip_space_before_foreach_iterators () {
@@ -26,34 +29,27 @@ strip_space_before_foreach_iterators () {
 	done
 }
 
-format_file () {
-	echo $1
+format () {
 	g_content=$(clang-format $1)
 	strip_space_before_foreach_iterators
 	printf '%s\n' "${g_content}" >$tmpfile
 	diff $1 $tmpfile
-}
-
-format_all_files () {
-	for f in ./src/*.c
-	do
-		format_file "$f"
-	done
-}
-
-args () {
-	case $1 in
-		-h)	usage ;;
-		*)	format_file "$1" ;;
-	esac
+	[[ $g_insitu = t ]] && mv -f $tmpfile $1
 }
 
 main () {
-	if [[ $# -gt 0 ]]; then
-		args "$@"
-	else
-		format_all_files
-	fi
+	[[ -e src/jgmenu.c ]] || die "must be run from top-level directory"
+	[[ $# = 0 ]] && usage
+	for arg
+	do
+		opt=${arg%%=*}
+		var=${arg#*=}
+		case "$opt" in
+		-h)	usage ;;
+		-i)	g_insitu=t ;;
+		*)	format "$opt" ;;
+		esac
+	done
 }
 
 main "$@"

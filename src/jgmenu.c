@@ -47,7 +47,7 @@
 #include "pm.h"
 #include "workarea.h"
 #include "charset.h"
-#include "watch.h"
+#include "hooks.h"
 #include "spawn.h"
 #include "banned.h"
 
@@ -569,7 +569,7 @@ static void draw_submenu_arrow(struct item *p)
 			       color, config.item_halign);
 }
 
-static void draw_icon(struct item *p)
+static void draw_icon(struct item *p, double alpha)
 {
 	int icon_y_coord;
 	int offsety, offsetx;
@@ -583,10 +583,20 @@ static void draw_icon(struct item *p)
 		       offsety;
 	if (config.item_halign != RIGHT)
 		ui_insert_image(p->icon, p->area.x + config.item_padding_x +
-				offsetx, icon_y_coord, config.icon_size);
+				offsetx, icon_y_coord, config.icon_size, alpha);
 	else
 		ui_insert_image(p->icon, p->area.x + p->area.w - config.icon_size -
-				config.item_padding_x + offsetx - 1, icon_y_coord, config.icon_size);
+				config.item_padding_x + offsetx - 1, icon_y_coord, config.icon_size, alpha);
+}
+
+static void draw_icon_norm(struct item *p)
+{
+	draw_icon(p, config.icon_norm_alpha / 100.0);
+}
+
+static void draw_icon_sel(struct item *p)
+{
+	draw_icon(p, config.icon_sel_alpha / 100.0);
 }
 
 static void draw_items_below_indicator(void)
@@ -671,8 +681,12 @@ static void draw_menu(void)
 			draw_item_sep(p);
 
 		/* Draw Icons */
-		if (config.icon_size && p->icon)
-			draw_icon(p);
+		if (config.icon_size && p->icon) {
+			if (p == menu.sel)
+				draw_icon_sel(p);
+			else
+				draw_icon_norm(p);
+		}
 
 		if (p == menu.last)
 			break;
@@ -1003,8 +1017,7 @@ static void awake_menu(void)
 {
 	menu_is_hidden = 0;
 	if_unity_run_hack();
-	if (watch_files_have_changed())
-		restart();
+	hooks_check();
 	if (config.position_mode == POSITION_MODE_PTR) {
 		launch_menu_at_pointer();
 		resize();
@@ -1119,7 +1132,7 @@ already_exists:
 	}
 }
 
-void remove_checkouts_without_matching_tags(void)
+static void remove_checkouts_without_matching_tags(void)
 {
 	struct item *i, *tmp;
 
@@ -2413,6 +2426,7 @@ static void set_theme(void)
 	icon_set_size(config.icon_size);
 	info("set icon theme to '%s'", theme.buf);
 	icon_set_theme(theme.buf);
+	xfree(theme.buf);
 }
 
 static void quit(int signum)
@@ -2484,7 +2498,7 @@ static void cleanup(void)
 	if (config.icon_size)
 		icon_cleanup();
 	widgets_cleanup();
-	watch_cleanup();
+	hooks_cleanup();
 	t2conf_atexit();
 	delete_empty_item();
 	destroy_node_tree();
@@ -2501,7 +2515,7 @@ static void keep_menu_height_between_min_and_max(void)
 		geo_set_menu_height(config.menu_height_max);
 }
 
-FILE *get_csv_source(bool arg_vsimple)
+static FILE *get_csv_source(bool arg_vsimple)
 {
 	if (args_csv_file()) {
 		struct sbuf s;
@@ -2521,6 +2535,23 @@ FILE *get_csv_source(bool arg_vsimple)
 	if (config.csv_cmd && config.csv_cmd[0] != '\0')
 		return popen(config.csv_cmd, "r");
 	return stdin;
+}
+
+static void exec_startup_script(const char *filename)
+{
+	struct sbuf s;
+	struct stat sb;
+
+	if (!filename)
+		return;
+	sbuf_init(&s);
+	sbuf_addstr(&s, filename);
+	sbuf_expand_tilde(&s);
+	if (stat(s.buf, &sb))
+		goto clean;
+	spawn_command_line_sync(s.buf);
+clean:
+	xfree(s.buf);
 }
 
 int main(int argc, char *argv[])
@@ -2552,6 +2583,10 @@ int main(int argc, char *argv[])
 			 !strncmp(argv[i], "-h", 2))
 			usage();
 	}
+
+	if (!arg_vsimple)
+		exec_startup_script("~/.config/jgmenu/startup");
+
 	if (!arg_vsimple)
 		config_read_jgmenurc(arg_config_file);
 	if (!config.verbosity)
@@ -2568,7 +2603,7 @@ int main(int argc, char *argv[])
 
 	if_unity_run_hack();
 
-	watch_init();
+	hooks_init();
 	ui_init();
 	geo_init();
 	filter_init();

@@ -12,16 +12,16 @@ VER      = $(shell ./scripts/version-gen.sh)
 -include config.mk
 include Makefile.inc
 
-jgmenu:     CFLAGS  += `pkg-config cairo pango pangocairo librsvg-2.0 --cflags`
-jgmenu-ob:  CFLAGS  += `xml2-config --cflags`
-jgmenu-obtheme: CFLAGS  += `xml2-config --cflags`
-jgmenu-config:  CFLAGS  += `pkg-config --cflags glib-2.0`
+jgmenu:         CFLAGS += `pkg-config cairo pango pangocairo librsvg-2.0 --cflags`
+jgmenu-ob:      CFLAGS += `xml2-config --cflags`
+jgmenu-obtheme: CFLAGS += `xml2-config --cflags`
+jgmenu-config:  CFLAGS += `pkg-config --cflags glib-2.0`
 
-jgmenu:     LIBS += `pkg-config x11 xrandr cairo pango pangocairo librsvg-2.0 --libs`
-jgmenu:     LIBS += -pthread -lpng
-jgmenu-ob:  LIBS += `xml2-config --libs`
-jgmenu-obtheme: LIBS += `xml2-config --libs`
-jgmenu-config:  LIBS += `pkg-config --libs glib-2.0`
+jgmenu:         LIBS   += `pkg-config x11 xrandr cairo pango pangocairo librsvg-2.0 --libs`
+jgmenu:         LIBS   += -pthread -lpng
+jgmenu-ob:      LIBS   += `xml2-config --libs`
+jgmenu-obtheme: LIBS   += `xml2-config --libs`
+jgmenu-config:  LIBS   += `pkg-config --libs glib-2.0`
 
 LDFLAGS += $(LIBS)
 
@@ -56,7 +56,7 @@ jgmenu: jgmenu.o x11-ui.o config.o util.o geometry.o isprog.o sbuf.o \
 	xsettings-helper.o filter.o compat.o lockfile.o argv-buf.o t2conf.o \
 	ipc.o unix_sockets.o bl.o cache.o back.o terminal.o restart.o \
 	theme.o gtkconf.o font.o args.o widgets.o pm.o socket.o workarea.o \
-	charset.o watch.o spawn.o
+	charset.o hooks.o spawn.o
 jgmenu-ob: jgmenu-ob.o util.o sbuf.o i18n.o hashmap.o
 jgmenu-socket: jgmenu-socket.o util.o sbuf.o unix_sockets.o socket.o compat.o
 jgmenu-i18n: jgmenu-i18n.o i18n.o hashmap.o util.o sbuf.o
@@ -80,9 +80,9 @@ $(DEPDIR)/%.d: ;
 install: $(PROGS)
 	@install -d $(DESTDIR)$(bindir)
 	@install -m755 jgmenu src/jgmenu_run $(DESTDIR)$(bindir)
-	@install -d $(DESTDIR)$(libexecdir)
-	@install -m755 $(PROGS_LIBEXEC) $(SCRIPTS_LIBEXEC) $(DESTDIR)$(libexecdir)
-	@./scripts/set-exec-path.sh $(DESTDIR)$(bindir)/jgmenu_run $(libexecdir)
+	@install -d $(DESTDIR)$(libexecdir)/jgmenu
+	@install -m755 $(PROGS_LIBEXEC) $(SCRIPTS_LIBEXEC) $(DESTDIR)$(libexecdir)/jgmenu
+	@./scripts/set-exec-path.sh $(DESTDIR)$(bindir)/jgmenu_run $(libexecdir)/jgmenu
 	@$(MAKE) --no-print-directory -C docs/manual/ prefix=$(prefix) install
 	@install -d $(DESTDIR)$(datarootdir)/icons/hicolor/scalable/apps/
 	@install -d $(DESTDIR)$(datarootdir)/applications/
@@ -140,7 +140,7 @@ ex:
 	@$(MAKE) --no-print-directory -C examples/ all
 
 check:
-	@./scripts/check
+	@./scripts/check src/*.sh src/*.c src/*.h
 
 print-%:
 	@echo '$*=$($*)'

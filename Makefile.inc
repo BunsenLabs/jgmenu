@@ -1,8 +1,13 @@
-RM       = rm -f
+RM      ?= rm -f
+prefix  ?= /usr/local
+bindir  ?= $(prefix)/bin
+libdir  ?= $(prefix)/lib
 
-prefix    ?= /usr/local
-bindir     = $(prefix)/bin
-libexecdir = $(prefix)/lib/jgmenu
+# www.gnu.org/prep/standards/html_node/Directory-Variables.html specifies that
+# libexecdir should point to $(exec_prefix)/libexec, but for backward
+# compatibility, we're just making it the same $libdir. That's what it's set
+# to on Arch and Debian anyway.
+libexecdir ?= $(prefix)/lib
 
 ifeq ($(prefix),$(HOME))
 datarootdir= $(prefix)/.local/share

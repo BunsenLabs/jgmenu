@@ -1,6 +1,6 @@
 % JGMENU(1)
 % Johan Malm
-% 19 February, 2020
+% 5 May, 2020
 
 # NAME
 
@@ -47,6 +47,7 @@ field separator:
   (3) icon  
   (4) working directory  
   (5) metadata  
+  (6) execute without "sh -c" wrapper  
 
 For example:
 
@@ -439,7 +440,7 @@ Here follow some specific types:
 
 `edge_snap_x` = __integer__ (default 30)
 
-:   Specify the distance (in pixles) from the left hand edge, within which the
+:   Specify the distance (in pixels) from the left hand edge, within which the
     menu will snap to the edge. Note that this only applies in `at_pointer`
     mode.
 
@@ -660,6 +661,15 @@ Here follow some specific types:
 
 :   Distance between icon and text within a menu item
 
+`icon_norm_alpha` = __integer__ (default 100)
+
+:   Opacity of menu item icons, expressed as a percentage (0-100).
+
+`icon_sel_alpha` = __integer__ (default 100)
+
+:   Opacity of the currently selected menu item's icon, expressed as a
+    percentage (0-100).
+
 `icon_theme` = __string__ (unset by default)
 
 :   Name of icon theme. E.g. `Adwaita`, `breeze`, `Paper`, `Papirus` and
@@ -761,7 +771,7 @@ environment variables which are used by the CSV generators.
 
 `csv_no_dirs` = __boolean__ (default 0)
 
-:   If set, csv-generators will output applications without any director
+:   If set, csv-generators will output applications without any directory
     structure. This is supported by apps, pmenu and lx.
 
 `csv_i18n` = __string__ (no default)
@@ -893,6 +903,36 @@ screen
 2. menu_margin_y
 3. sub_spacing
 ```
+
+# HOOKS
+
+A hook in jgmenu is a rule which optionally triggers a command and then
+performs a restart if a file or directory has has changed since the last time
+the instance of jgmenu was mapped (=made visible - normally by running
+jgmenu_run).
+
+Hooks are specified in the file $HOME/.config/jgmenu/hooks are take the format
+
+    <file>,<command>
+
+For example, to syncronise with the GTK theme, use this hook:
+
+    ~/.config/gtk-3.0/settings.ini,jgmenu_run gtktheme
+
+Leave the `<command>` empty to just restart.
+
+A number of restart-hooks are built-in by default, for example
+~/.config/jgmenu/{jgmenurc,append.csv,prepend.csv} and
+/usr/share/applications.
+
+To list all the built-in hooks, use the keyword `print` in the hook file (on
+a line on its own). In order to remove all the built-in hooks, use the
+keyword `clear`.
+
+# STARTUP SCRIPT
+
+Unless the `--vsimple` argument is used, the file ~/.config/jgmenu/startup
+is executed on initial startup.
 
 # SEE ALSO
 
