@@ -1,11 +1,8 @@
 /*
  * xdgdirs.c
  *
- * Simply provides linked lists with "XDG" directories
- *
+ * Provide lists of XDG directories based on
  * http://specifications.freedesktop.org/basedir-spec...
- *
- * The list will contain the directories listed below (in given order).
  */
 
 #include <stdio.h>
@@ -18,15 +15,21 @@
 #include "argv-buf.h"
 #include "banned.h"
 
-static char *xdg_base_dirs[] = {
-	"$XDG_DATA_HOME", "$HOME/.local/share", "$XDG_DATA_DIRS",
-	"/usr/share", "/usr/local/share", "/opt/share", NULL
-};
+static char *xdg_data_dirs[] = { "$XDG_DATA_HOME",
+				 "$HOME/.local/share",
+				 "$XDG_DATA_DIRS",
+				 "/usr/share",
+				 "/usr/local/share",
+				 "/opt/share",
+				 NULL };
 
-static char *xdg_config_dirs[] = {
-	"$XDG_CONFIG_HOME", "$HOME/.config", "$XDG_CONFIG_DIRS", "/etc/xdg",
-	NULL
-};
+/* clang-format off */
+static char *xdg_config_dirs[] = { "$XDG_CONFIG_HOME",
+				   "$HOME/.config",
+				   "$XDG_CONFIG_DIRS",
+				   "/etc/xdg",
+				   NULL };
+/* clang-format on */
 
 static void get_dirs(struct list_head *dir_list, char **dirs)
 {
@@ -50,11 +53,12 @@ static void get_dirs(struct list_head *dir_list, char **dirs)
 			sbuf_list_append(dir_list, argv_buf.argv[j]);
 		xfree(argv_buf.buf);
 	}
+	xfree(tmp.buf);
 }
 
-void xdgdirs_get_basedirs(struct list_head *dir_list)
+void xdgdirs_get_datadirs(struct list_head *dir_list)
 {
-	get_dirs(dir_list, xdg_base_dirs);
+	get_dirs(dir_list, xdg_data_dirs);
 }
 
 void xdgdirs_get_configdirs(struct list_head *dir_list)
@@ -68,8 +72,8 @@ void xdgdirs_find_menu_file(struct sbuf *filename)
 	struct sbuf *tmp;
 	struct stat sb;
 	int i;
-	static const char * const prefix[] = { "gnome-", "lxde-", "lxqt-", "kde-",
-					       NULL };
+	static const char *const prefix[] = { "gnome-", "lxde-", "lxqt-",
+					      "kde-", NULL };
 
 	xdgdirs_get_configdirs(&config_dirs);
 	sbuf_init(filename);
