@@ -1,10 +1,10 @@
-jgmenu (4.2.0+bl10-2) lithium; urgency=medium
+jgmenu (4.2.1+bl10-1) lithium; urgency=medium
 
-  * Fix packaging problems introduced by changes in v4.2.0.
+  * New upstream release
 
- -- Jens John <dev@2ion.de>  Mon, 11 May 2020 11:20:27 +0200
+ -- Johan Malm <jgm323@gmail.com>  Tue, 19 May 2020 22:04:21 +0100
 
-jgmenu (4.2.0+bl10-1) lithium; urgency=medium
+jgmenu (4.2.0-1) unstable; urgency=medium
 
   * New upstream release
 
