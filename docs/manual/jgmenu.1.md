@@ -1,6 +1,6 @@
 % JGMENU(1)
 % Johan Malm
-% 5 May, 2020
+% 2 January, 2021
 
 # NAME
 
@@ -12,7 +12,7 @@ jgmenu \[\--no-spawn] \[\--checkout=<*tag*>] \[\--config-file=<*file*>]
        \[\--icon-size=<*size*>] \[\--at-pointer] \[\--hide-on-startup]  
        \[\--simple] \[\--vsimple] \[\--csv-file=<*file*>]  
        \[\--csv-cmd=<*command*>] \[\--die-when-loaded]  
-       \[\--center]
+       \[\--center] \[\--persistent]  
 
 Use these commands to get started
 
@@ -153,6 +153,10 @@ The following markup is supported in the `command` field
 
 :   Invoke search
 
+`^quit()`
+
+:   Quit
+
 ## Icons
 
 Icons will be displayed if the third field is populated, for example:
@@ -211,6 +215,11 @@ Icons will be displayed if the third field is populated, for example:
 `--center`
 
 :   Center align menu horizontally and vertically.
+
+`--persistent`
+
+:   Same as the persistent config option. See config option section below
+    for details.
 
 # USER INTERFACE
 
@@ -276,7 +285,7 @@ accordance with the following syntax:
     `search`
 
     :   Search box showing the current filter (what the user has typed)
-        or the specifed `text` if no filter has been invoked. 
+        or the specified `text` if no filter has been invoked.
 
     `icon`
 
@@ -392,6 +401,12 @@ Here follow some specific types:
 :   If set to 1, the menu will "hide" rather than "exit" when the following
     events occur: clicking on menu item; clicking outside the menu; pressing
     escape. When in the hidden mode, a USR1 signal will "un-hide" the menu.
+
+`persistent` = __boolean__ (default 0)
+
+:   If set to 1, the menu will not exit nor hide when the following
+    events occur: clicking on menu item; clicking outside the menu; pressing
+    escape. Use in conjunction with the ^quit() markup.
 
 `hide_on_startup` = __boolean__ (default 0)
 
@@ -554,6 +569,12 @@ Here follow some specific types:
 
 :   Vertical alignment of menu. See `menu_halign`.
 
+`menu_gradient_pos` = (none | top | right | bottom | left | top_left | top_right | bottom_left | bottom_right ) (default none)
+
+:   Start position of menu window gradient. The end position is at the
+    opposite side or corner. Colors color_menu_bg and color_menu_bg_to
+    specify the start (from) and finish (to).
+
 `sub_spacing` = __integer__ (default 1)
 
 :   Horizontal space between windows. A negative value results in each submenu
@@ -696,7 +717,12 @@ Here follow some specific types:
 
 `color_menu_bg` = __color__ (default #000000 100)
 
-:   Background colour of menu window
+:   Background colour of menu window. If gradients are enabled, this will
+    be the 'from' color.
+
+`color_menu_bg_to` = __color__ (default #000000 100)
+
+:   Background 'to' colour of menu window - for use with gradients
 
 `color_menu_border` = __color__ (default #eeeeee 8)
 
@@ -724,12 +750,12 @@ Here follow some specific types:
 
 `color_sep_fg` = __color__ (default #ffffff 20)
 
-:   Font (foreground) colour of seperators without text
+:   Font (foreground) colour of separators without text
 
 `color_title_fg` = __color__ (default #eeeeee 50)
 
 :   Font (foreground) colour of separators with text. The font colour can be
-    overriden by `sep_markup`
+    overridden by `sep_markup`
 
 `color_title_bg` = __color__ (default #000000 0)
 
@@ -915,7 +941,7 @@ Hooks are specified in the file $HOME/.config/jgmenu/hooks are take the format
 
     <file>,<command>
 
-For example, to syncronise with the GTK theme, use this hook:
+For example, to synchronise with the GTK theme, use this hook:
 
     ~/.config/gtk-3.0/settings.ini,jgmenu_run gtktheme
 

@@ -21,6 +21,7 @@ void config_set_defaults(void)
 	config.spawn		   = 1;	/* not in jgmenurc */
 	config.verbosity	   = 0;
 	config.stay_alive	   = 1;
+	config.persistent          = 0;
 	config.hide_on_startup	   = 0;
 	config.csv_cmd		   = xstrdup("apps");
 	config.tint2_look	   = 0;
@@ -49,6 +50,7 @@ void config_set_defaults(void)
 	config.menu_border	   = 0;
 	config.menu_halign	   = LEFT;
 	config.menu_valign	   = BOTTOM;
+	config.menu_gradient_pos   = ALIGNMENT_NONE;
 
 	config.sub_spacing	   = 1;
 	config.sub_padding_top	   = CONFIG_AUTO;
@@ -82,6 +84,7 @@ void config_set_defaults(void)
 	config.arrow_width	   = 15;
 
 	parse_hexstr("#000000 100", config.color_menu_bg);
+	parse_hexstr("#000000 100", config.color_menu_bg_to);
 	parse_hexstr("#eeeeee 8", config.color_menu_border);
 	parse_hexstr("#000000 00", config.color_norm_bg);
 	parse_hexstr("#eeeeee 100", config.color_norm_fg);
@@ -130,6 +133,9 @@ static void process_line(char *line)
 	} else if (!strcmp(option, "stay_alive")) {
 		xatoi(&config.stay_alive, value, XATOI_NONNEG,
 		      "config.stay_alive");
+	} else if (!strcmp(option, "persistent")) {
+		xatoi(&config.persistent, value, XATOI_NONNEG,
+		      "config.persistent");
 	} else if (!strcmp(option, "hide_on_startup")) {
 		xatoi(&config.hide_on_startup, value, XATOI_NONNEG,
 		      "config.hide_on_startup");
@@ -359,6 +365,8 @@ static void process_line(char *line)
 
 	} else if (!strcmp(option, "color_menu_bg")) {
 		parse_hexstr(value, config.color_menu_bg);
+	} else if (!strcmp(option, "color_menu_bg_to")) {
+		parse_hexstr(value, config.color_menu_bg_to);
 	} else if (!strcmp(option, "color_menu_border")) {
 		parse_hexstr(value, config.color_menu_border);
 	} else if (!strcmp(option, "color_norm_bg")) {
@@ -396,6 +404,25 @@ static void process_line(char *line)
 	} else if (!strcmp(option, "csv_no_duplicates")) {
 		xatoi(&config.csv_no_duplicates, value, XATOI_NONNEG,
 		      "config.csv_no_duplicates");
+	} else if (!strcmp(option, "menu_gradient_pos")) {
+		if (!value)
+			return;
+		if (!strcasecmp(value, "top"))
+			config.menu_gradient_pos = TOP;
+		else if (!strcasecmp(value, "right"))
+			config.menu_gradient_pos = RIGHT;
+		else if (!strcasecmp(value, "left"))
+			config.menu_gradient_pos = LEFT;
+		else if (!strcasecmp(value, "bottom"))
+			config.menu_gradient_pos = BOTTOM;
+		else if (!strcasecmp(value, "top_left"))
+			config.menu_gradient_pos = TOP_LEFT;
+		else if (!strcasecmp(value, "top_right"))
+			config.menu_gradient_pos = TOP_RIGHT;
+		else if (!strcasecmp(value, "bottom_left"))
+			config.menu_gradient_pos = BOTTOM_LEFT;
+		else if (!strcasecmp(value, "bottom_right"))
+			config.menu_gradient_pos = BOTTOM_RIGHT;
 	}
 }
 

@@ -7,6 +7,8 @@
 
 import os
 import sys
+import shlex
+import subprocess
 try:
     import gi
 except ImportError:
@@ -14,11 +16,10 @@ except ImportError:
     sys.exit(1)
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
-import shlex
-import subprocess
+from gi.repository import Gtk
 
 def run(command):
+    """ run a command """
     subprocess.Popen(shlex.split(command))
 
 def fmt(s):
@@ -27,8 +28,7 @@ def fmt(s):
         return "00"
     elif len(s) == 1:
         return "0{}".format(s)
-    else:
-        return s
+    return s
 
 def rgb2hex(line):
     """ convert rgb values to a 6-digit hex string """
@@ -51,14 +51,16 @@ def process_line(line):
     """ process one line """
     if "background-color" in line:
         setconfig("color_menu_bg", rgb2hex(line))
+        setconfig("color_title_bg", rgb2hex(line))
+        setconfig("color_title_border", rgb2hex(line))
 
 def cache(themename):
     """ save the theme-name to ~/.cache/jgmenu/.last-gtktheme """
-    print ("themename={}".format(themename))
-    dir = os.environ["HOME"] + "/.cache/jgmenu"
-    if not os.path.exists(dir):
-        os.mkdir(dir)
-    f = open(dir + "/.last-gtktheme", "w")
+    print("themename={}".format(themename))
+    directory = os.environ["HOME"] + "/.cache/jgmenu"
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+    f = open(directory + "/.last-gtktheme", "w")
     f.write(themename)
     f.close()
 
@@ -79,6 +81,7 @@ def main():
             break
         if "theme_text_color" in line:
             setconfig("color_norm_fg", rgb2hex(line))
+            setconfig("color_title_fg", rgb2hex(line))
         if "theme_selected_bg_color" in line:
             setconfig("color_sel_bg", rgb2hex(line))
         if "theme_selected_fg_color" in line:
@@ -98,3 +101,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
