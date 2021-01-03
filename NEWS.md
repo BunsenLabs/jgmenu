@@ -6,15 +6,12 @@
 
 ## Recent releases
 
-### 2020
+| Date       | Release Notes                     |
+|------------|-----------------------------------|
+| 2021-01-02 | [v4.3.0](docs/relnotes/4.3.0.txt) |
+| 2020-05-19 | [v4.2.1](docs/relnotes/4.2.1.txt) |
+| 2020-05-06 | [v4.2.0](docs/relnotes/4.2.0.txt) |
+| 2020-03-02 | [v4.1.0](docs/relnotes/4.1.0.txt) |
+| 2020-02-02 | [v4.0.2](docs/relnotes/4.0.2.txt) |
+| 2020-01-19 | [v4.0.1](docs/relnotes/4.0.1.txt) |
 
-[v4.0](docs/relnotes/4.0.txt)  
-
-### 2019
-
-[v3.5](docs/relnotes/3.5.txt)  
-[v3.4](docs/relnotes/3.4.txt)  
-[v3.3](docs/relnotes/3.3.txt)  
-[v3.2](docs/relnotes/3.2.txt)  
-[v3.1](docs/relnotes/3.1.txt)  
-[v3.0](docs/relnotes/3.0.txt)  

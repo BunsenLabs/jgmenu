@@ -23,32 +23,9 @@
 static struct app *apps;
 static int nr_apps, alloc_apps;
 
-/* TODO: parse this properly and share code with lx */
-static void format_exec(char *s)
-{
-	char *p;
-
-	if (!s)
-		return;
-	/* Remove %U, %f, etc at the end of Exec cmd */
-	p = strchr(s, '%');
-	if (p)
-		*p = '\0';
-}
-
 static void parse_line(char *line, struct app *app, int *is_desktop_entry)
 {
 	char *key, *value;
-	static char *name_ll, *name_ll_cc, *gname_ll, *gname_ll_cc;
-
-	/*
-	 * Set to "Name[<ll>]", "Name[<ll_CC>]" and the equivalent for
-	 * GenericName
-	 */
-	if (!name_ll) {
-		lang_localized_name_key(&name_ll, &name_ll_cc);
-		lang_localized_gname_key(&gname_ll, &gname_ll_cc);
-	}
 
 	/* We only read the [Desktop Entry] section of a .desktop file */
 	if (line[0] == '[') {
@@ -63,15 +40,15 @@ static void parse_line(char *line, struct app *app, int *is_desktop_entry)
 	if (!parse_config_line(line, &key, &value))
 		return;
 	if (!strcmp("Name", key)) {
-		app->name = strdup(value);
+		strlcpy(app->name, value, sizeof(app->name));
 	} else if (!strcmp("GenericName", key)) {
-		app->generic_name = strdup(value);
+		strlcpy(app->generic_name, value, sizeof(app->generic_name));
 	} else if (!strcmp("Exec", key)) {
-		app->exec = strdup(value);
+		strlcpy(app->exec, value, sizeof(app->exec));
 	} else if (!strcmp("Icon", key)) {
-		app->icon = strdup(value);
+		strlcpy(app->icon, value, sizeof(app->icon));
 	} else if (!strcmp("Categories", key)) {
-		app->categories = strdup(value);
+		strlcpy(app->categories, value, sizeof(app->categories));
 	} else if (!strcmp("NoDisplay", key)) {
 		if (!strcasecmp(value, "true"))
 			app->nodisplay = true;
@@ -81,19 +58,24 @@ static void parse_line(char *line, struct app *app, int *is_desktop_entry)
 	}
 
 	/* localized name */
-	if (!strcmp(key, name_ll_cc))
-		app->name_localized = xstrdup(value);
-	if (!app->name_localized && !strcmp(key, name_ll))
-		app->name_localized = xstrdup(value);
+	if (!strcmp(key, lang_name_llcc()))
+		strlcpy(app->name_localized, value,
+			sizeof(app->name_localized));
+	if (app->name_localized[0] == '\0' && !strcmp(key, lang_name_ll()))
+		strlcpy(app->name_localized, value,
+			sizeof(app->name_localized));
 
 	/* localized generic name */
-	if (!strcmp(key, gname_ll_cc))
-		app->generic_name_localized = xstrdup(value);
-	if (!app->generic_name_localized && !strcmp(key, gname_ll))
-		app->generic_name_localized = xstrdup(value);
+	if (!strcmp(key, lang_gname_llcc()))
+		strlcpy(app->generic_name_localized, value,
+			sizeof(app->generic_name_localized));
+	if (app->generic_name_localized[0] == '\0' &&
+	    !strcmp(key, lang_gname_ll()))
+		strlcpy(app->generic_name_localized, value,
+			sizeof(app->generic_name_localized));
 }
 
-bool is_duplicate_desktop_file(char *filename)
+static bool is_duplicate_desktop_file(char *filename)
 {
 	int i;
 
@@ -106,29 +88,6 @@ bool is_duplicate_desktop_file(char *filename)
 			return true;
 	}
 	return false;
-}
-
-/**
- * This makes the code a bit simpler in jgmenu-apps.c
- */
-static void strdup_null_variables(struct app *app)
-{
-	if (!app->name)
-		app->name = strdup("");
-	if (!app->name_localized)
-		app->name_localized = strdup("");
-	if (!app->generic_name)
-		app->generic_name = strdup("");
-	if (!app->generic_name_localized)
-		app->generic_name_localized = strdup("");
-	if (!app->exec)
-		app->exec = strdup("");
-	if (!app->icon)
-		app->icon = strdup("");
-	if (!app->categories)
-		app->categories = strdup("");
-	if (!app->filename)
-		app->filename = strdup("");
 }
 
 static struct app *grow_vector_by_one_app(void)
@@ -165,9 +124,9 @@ static int add_app(FILE *fp, char *filename)
 			return -1;
 		parse_line(line, app, &is_desktop_entry);
 	}
-	format_exec(app->exec);
-	app->filename = strdup(filename);
-	strdup_null_variables(app);
+	strlcpy(app->filename, filename, sizeof(app->filename));
+	p = &app->exec[0];
+	strip_exec_field_codes(&p);
 	return 0;
 }
 
@@ -229,12 +188,13 @@ struct app *desktop_read_files(void)
 	struct sbuf *dir;
 	struct sbuf s;
 	static int has_already_run;
+	struct app *app;
 
 	BUG_ON(has_already_run);
 	has_already_run = 1;
 
 	INIT_LIST_HEAD(&xdg_data_dirs);
-	xdgdirs_get_basedirs(&xdg_data_dirs);
+	xdgdirs_get_datadirs(&xdg_data_dirs);
 
 	sbuf_init(&s);
 	list_for_each_entry(dir, &xdg_data_dirs, list) {
@@ -245,8 +205,10 @@ struct app *desktop_read_files(void)
 	}
 	qsort(apps, nr_apps, sizeof(struct app), compare_app_name);
 	xfree(s.buf);
+	sbuf_list_free(&xdg_data_dirs);
 
 	/* NULL terminate vector */
-	(void *)grow_vector_by_one_app();
+	app = grow_vector_by_one_app();
+	app->end = true;
 	return apps;
 }

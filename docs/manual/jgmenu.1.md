@@ -1,6 +1,6 @@
 % JGMENU(1)
 % Johan Malm
-% 4 January, 2019
+% 2 January, 2021
 
 # NAME
 
@@ -12,7 +12,7 @@ jgmenu \[\--no-spawn] \[\--checkout=<*tag*>] \[\--config-file=<*file*>]
        \[\--icon-size=<*size*>] \[\--at-pointer] \[\--hide-on-startup]  
        \[\--simple] \[\--vsimple] \[\--csv-file=<*file*>]  
        \[\--csv-cmd=<*command*>] \[\--die-when-loaded]  
-       \[\--center]
+       \[\--center] \[\--persistent]  
 
 Use these commands to get started
 
@@ -47,6 +47,7 @@ field separator:
   (3) icon  
   (4) working directory  
   (5) metadata  
+  (6) execute without "sh -c" wrapper  
 
 For example:
 
@@ -152,6 +153,10 @@ The following markup is supported in the `command` field
 
 :   Invoke search
 
+`^quit()`
+
+:   Quit
+
 ## Icons
 
 Icons will be displayed if the third field is populated, for example:
@@ -210,6 +215,11 @@ Icons will be displayed if the third field is populated, for example:
 `--center`
 
 :   Center align menu horizontally and vertically.
+
+`--persistent`
+
+:   Same as the persistent config option. See config option section below
+    for details.
 
 # USER INTERFACE
 
@@ -275,7 +285,7 @@ accordance with the following syntax:
     `search`
 
     :   Search box showing the current filter (what the user has typed)
-        or the specifed `text` if no filter has been invoked. 
+        or the specified `text` if no filter has been invoked.
 
     `icon`
 
@@ -327,7 +337,7 @@ Global config variables are set in the following order (i.e. bottom
 of list has higher precedence):
 
 - built-in defaults (config.c)  
-- tint2rc config file (can be specified by `TINT2_CONFIG` environment variable  
+- tint2rc config file (can be specified by `TINT2_CONFIG` environment variable)  
 - jgmenurc config file (can be specified by --config-file=)  
 - command line arguments  
 
@@ -384,7 +394,7 @@ Here follow some specific types:
 
     Additional specific topics: (4) IPC
 
-    Note: Some IPC messages need environment variable `JGMENU_VERBOSE=4` too
+    Note: Some IPC messages need environment variable `JGMENU_VERBOSITY=4` too
 
 `stay_alive` = __boolean__ (default 1)
 
@@ -392,16 +402,22 @@ Here follow some specific types:
     events occur: clicking on menu item; clicking outside the menu; pressing
     escape. When in the hidden mode, a USR1 signal will "un-hide" the menu.
 
+`persistent` = __boolean__ (default 0)
+
+:   If set to 1, the menu will not exit nor hide when the following
+    events occur: clicking on menu item; clicking outside the menu; pressing
+    escape. Use in conjunction with the ^quit() markup.
+
 `hide_on_startup` = __boolean__ (default 0)
 
 :   If set to 1, jgmenu start in "hidden" mode. This is useful for starting
     jgmenu during the boot process and then sending a `killall -SIGUSR1 jgmenu`
     to show the menu.
 
-`csv_cmd` = __string__ (default `pmenu`)
+`csv_cmd` = __string__ (default `apps`)
 
 :   Defines the command to produce the jgmenu flavoured CSV for `jgmenu`.
-    Accpetable keyword include pmenu, lx, apps and ob. If a value is given
+    Accpetable keyword include apps, pmenu, lx, and ob. If a value is given
     other than these keywords, it will be executed in a shell (so be
     careful!). If left blank, jgmenu will read from `stdin`. Examples:
 
@@ -439,7 +455,7 @@ Here follow some specific types:
 
 `edge_snap_x` = __integer__ (default 30)
 
-:   Specify the distance (in pixles) from the left hand edge, within which the
+:   Specify the distance (in pixels) from the left hand edge, within which the
     menu will snap to the edge. Note that this only applies in `at_pointer`
     mode.
 
@@ -506,15 +522,16 @@ Here follow some specific types:
 
 `menu_height_mode` = (static | dynamic) (default static)
 
-:   `static`
+:   Mode of menu height
 
+    `static`
     :   Height of the initial root menu will be used for any subsequent
         `^root()` action
 
     `dynamic`
 
-    :   Root menu height will be re-calculated every time a new tag is opened
-        using `^root()`.
+    :   Root menu height will be re-calculated every time a new tag is
+        opened using `^root()`.
 
 `menu_padding_top` = __integer__ (default 5)
 
@@ -551,6 +568,12 @@ Here follow some specific types:
 `menu_valign` = (top | bottom | center) (default bottom)
 
 :   Vertical alignment of menu. See `menu_halign`.
+
+`menu_gradient_pos` = (none | top | right | bottom | left | top_left | top_right | bottom_left | bottom_right ) (default none)
+
+:   Start position of menu window gradient. The end position is at the
+    opposite side or corner. Colors color_menu_bg and color_menu_bg_to
+    specify the start (from) and finish (to).
 
 `sub_spacing` = __integer__ (default 1)
 
@@ -659,6 +682,15 @@ Here follow some specific types:
 
 :   Distance between icon and text within a menu item
 
+`icon_norm_alpha` = __integer__ (default 100)
+
+:   Opacity of menu item icons, expressed as a percentage (0-100).
+
+`icon_sel_alpha` = __integer__ (default 100)
+
+:   Opacity of the currently selected menu item's icon, expressed as a
+    percentage (0-100).
+
 `icon_theme` = __string__ (unset by default)
 
 :   Name of icon theme. E.g. `Adwaita`, `breeze`, `Paper`, `Papirus` and
@@ -685,7 +717,12 @@ Here follow some specific types:
 
 `color_menu_bg` = __color__ (default #000000 100)
 
-:   Background colour of menu window
+:   Background colour of menu window. If gradients are enabled, this will
+    be the 'from' color.
+
+`color_menu_bg_to` = __color__ (default #000000 100)
+
+:   Background 'to' colour of menu window - for use with gradients
 
 `color_menu_border` = __color__ (default #eeeeee 8)
 
@@ -713,12 +750,12 @@ Here follow some specific types:
 
 `color_sep_fg` = __color__ (default #ffffff 20)
 
-:   Font (foreground) colour of seperators without text
+:   Font (foreground) colour of separators without text
 
 `color_title_fg` = __color__ (default #eeeeee 50)
 
 :   Font (foreground) colour of separators with text. The font colour can be
-    overriden by `sep_markup`
+    overridden by `sep_markup`
 
 `color_title_bg` = __color__ (default #000000 0)
 
@@ -760,14 +797,17 @@ environment variables which are used by the CSV generators.
 
 `csv_no_dirs` = __boolean__ (default 0)
 
-:   If set, csv-generators will output applications without any director
+:   If set, csv-generators will output applications without any directory
     structure. This is supported by apps, pmenu and lx.
 
 `csv_i18n` = __string__ (no default)
 
-:   If set, the ob module will look for a translation file in the
-    specified file or directory. See `jgmenu_run i18n --help` and
-    `jgmenu-ob(1)` for further details.
+:   Look for a translation file in the specified file or directory.
+    See `jgmenu-i18n(1) for further details. Supported by apps and ob.
+
+`csv_no_duplicates` = __boolean__ (default 0)
+
+:   Restrict applications to appear in one directory only. Supported by apps.
 
 # Inter-Process Communication (IPC) {#ipc}
 
@@ -850,12 +890,12 @@ used.
 ╔═╤═╤════════════════╤═╤═╗
 ║ │ │                │ │ ║
 ║ │ ├────────────────┤ │ ║
-║ │ │ @    web      >│ │ ║
+║ │ │icon   text    >│ │ ║
 ║ │ ├────────────────┤ │ ║
 ║2│1│                │1│3║
-║ │ ├───┬─┬────────┬─┤ │ ║
-║ │ │ 4 │5│        │6│ │ ║
-║ │ ├───┴─┴────────┴─┤ │ ║
+║ │ ├────┬─┬───────┬─┤ │ ║
+║ │ │ 4  │5│       │6│ │ ║
+║ │ ├────┴─┴───────┴─┤ │ ║
 ║ │ │                │ │ ║
 ║ │ │                │ │ ║
 ╚═╧═╧════════════════╧═╧═╝
@@ -889,6 +929,36 @@ screen
 2. menu_margin_y
 3. sub_spacing
 ```
+
+# HOOKS
+
+A hook in jgmenu is a rule which optionally triggers a command and then
+performs a restart if a file or directory has has changed since the last time
+the instance of jgmenu was mapped (=made visible - normally by running
+jgmenu_run).
+
+Hooks are specified in the file $HOME/.config/jgmenu/hooks are take the format
+
+    <file>,<command>
+
+For example, to synchronise with the GTK theme, use this hook:
+
+    ~/.config/gtk-3.0/settings.ini,jgmenu_run gtktheme
+
+Leave the `<command>` empty to just restart.
+
+A number of restart-hooks are built-in by default, for example
+~/.config/jgmenu/{jgmenurc,append.csv,prepend.csv} and
+/usr/share/applications.
+
+To list all the built-in hooks, use the keyword `print` in the hook file (on
+a line on its own). In order to remove all the built-in hooks, use the
+keyword `clear`.
+
+# STARTUP SCRIPT
+
+Unless the `--vsimple` argument is used, the file ~/.config/jgmenu/startup
+is executed on initial startup.
 
 # SEE ALSO
 

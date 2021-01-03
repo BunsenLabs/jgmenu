@@ -26,6 +26,7 @@ struct option {
 static struct option options[] = {
 	{ "verbosity", "0" },
 	{ "stay_alive", "1" },
+	{ "persistent", "0" },
 	{ "hide_on_startup", "0" },
 	{ "csv_cmd", "apps" },
 	{ "tint2_look", "0" },
@@ -52,6 +53,7 @@ static struct option options[] = {
 	{ "menu_border", "0" },
 	{ "menu_halign", "left" },
 	{ "menu_valign", "bottom" },
+	{ "menu_gradient_pos", "none" },
 	{ "sub_spacing", "1" },
 	{ "sub_padding_top", "auto" },
 	{ "sub_padding_right", "auto" },
@@ -72,11 +74,14 @@ static struct option options[] = {
 	{ "font_fallback", "xtg" },
 	{ "icon_size", "22" },
 	{ "icon_text_spacing", "10" },
+	{ "icon_norm_alpha", "100" },
+	{ "icon_sel_alpha", "100" },
 	{ "icon_theme", "" },
 	{ "icon_theme_fallback", "xtg" },
 	{ "arrow_string", "▸" },
 	{ "arrow_width", "15" },
 	{ "color_menu_bg", "#000000 100" },
+	{ "color_menu_bg_to", "#000000 100" },
 	{ "color_menu_border", "#eeeeee 8" },
 	{ "color_norm_bg", "#000000 00" },
 	{ "color_norm_fg", "#eeeeee 100" },
@@ -92,6 +97,7 @@ static struct option options[] = {
 	{ "csv_single_window", "0" },
 	{ "csv_no_dirs", "0" },
 	{ "csv_i18n", "" },
+	{ "csv_no_duplicates", "0" },
 	{ NULL, NULL },
 };
 

@@ -47,7 +47,7 @@
 #include "pm.h"
 #include "workarea.h"
 #include "charset.h"
-#include "watch.h"
+#include "hooks.h"
 #include "spawn.h"
 #include "banned.h"
 
@@ -124,7 +124,7 @@ static const char jgmenu_usage[] =
 "    --vsimple             same as --simple, but also disables icons and\n"
 "                          ignores jgmenurc\n"
 "    --csv-file=<file>     specify menu file (in jgmenu flavoured CSV format)\n"
-"    --csv-cmd=<command>   specify command to producue menu data\n";
+"    --csv-cmd=<command>   specify command to produce menu data\n";
 
 static void checkout_rootnode(void);
 static void pipemenu_del_all(void);
@@ -569,7 +569,7 @@ static void draw_submenu_arrow(struct item *p)
 			       color, config.item_halign);
 }
 
-static void draw_icon(struct item *p)
+static void draw_icon(struct item *p, double alpha)
 {
 	int icon_y_coord;
 	int offsety, offsetx;
@@ -583,10 +583,20 @@ static void draw_icon(struct item *p)
 		       offsety;
 	if (config.item_halign != RIGHT)
 		ui_insert_image(p->icon, p->area.x + config.item_padding_x +
-				offsetx, icon_y_coord, config.icon_size);
+				offsetx, icon_y_coord, config.icon_size, alpha);
 	else
 		ui_insert_image(p->icon, p->area.x + p->area.w - config.icon_size -
-				config.item_padding_x + offsetx - 1, icon_y_coord, config.icon_size);
+				config.item_padding_x + offsetx - 1, icon_y_coord, config.icon_size, alpha);
+}
+
+static void draw_icon_norm(struct item *p)
+{
+	draw_icon(p, config.icon_norm_alpha / 100.0);
+}
+
+static void draw_icon_sel(struct item *p)
+{
+	draw_icon(p, config.icon_sel_alpha / 100.0);
 }
 
 static void draw_items_below_indicator(void)
@@ -636,8 +646,14 @@ static void draw_menu(void)
 
 	/* Draw background */
 	ui_clear_canvas();
-	ui_draw_rectangle(0, 0, w, geo_get_menu_height(), config.menu_radius,
-			  config.menu_border, 1, config.color_menu_bg);
+	if (config.menu_gradient_pos != ALIGNMENT_NONE) {
+		ui_draw_rectangle_gradient(0, 0, w, geo_get_menu_height(), config.menu_radius,
+				config.menu_border, 1, config.color_menu_bg, config.color_menu_bg_to, config.menu_gradient_pos);
+	} else {
+		ui_draw_rectangle(0, 0, w, geo_get_menu_height(), config.menu_radius,
+				config.menu_border, 1, config.color_menu_bg);
+	}
+
 
 	/* Draw menu border */
 	if (config.menu_border)
@@ -671,8 +687,12 @@ static void draw_menu(void)
 			draw_item_sep(p);
 
 		/* Draw Icons */
-		if (config.icon_size && p->icon)
-			draw_icon(p);
+		if (config.icon_size && p->icon) {
+			if (p == menu.sel)
+				draw_icon_sel(p);
+			else
+				draw_icon_norm(p);
+		}
 
 		if (p == menu.last)
 			break;
@@ -996,15 +1016,14 @@ static void if_unity_run_hack(void)
 		first_run = 0;
 	}
 	if (isunity)
-		spawn("jgmenu_run unity-hack", NULL);
+		spawn_async("jgmenu_run unity-hack", NULL);
 }
 
 static void awake_menu(void)
 {
 	menu_is_hidden = 0;
 	if_unity_run_hack();
-	if (watch_files_have_changed())
-		restart();
+	hooks_check();
 	if (config.position_mode == POSITION_MODE_PTR) {
 		launch_menu_at_pointer();
 		resize();
@@ -1119,7 +1138,7 @@ already_exists:
 	}
 }
 
-void remove_checkouts_without_matching_tags(void)
+static void remove_checkouts_without_matching_tags(void)
 {
 	struct item *i, *tmp;
 
@@ -1503,6 +1522,8 @@ static void hide_menu(void)
 
 static void hide_or_exit(void)
 {
+	if (config.persistent > 0)
+		return;
 	if (config.stay_alive)
 		hide_menu();
 	else
@@ -1535,7 +1556,7 @@ static void action_cmd(char *cmd, const char *working_dir)
 		p = parse_caret_action(cmd, "^sub(");
 		if (!p)
 			return;
-		spawn(p, working_dir);
+		spawn_async(p, working_dir);
 		hide_or_exit();
 	} else if (!strncmp(cmd, "^back(", 6)) {
 		checkout_parent();
@@ -1549,7 +1570,7 @@ static void action_cmd(char *cmd, const char *working_dir)
 		sbuf_init(&s);
 		term_build_terminal_cmd(&s, strstrip(p), config.terminal_exec,
 					config.terminal_args);
-		spawn(s.buf, working_dir);
+		spawn_async(s.buf, working_dir);
 		free(s.buf);
 		hide_or_exit();
 	} else if (!strncmp(cmd, "^pipe(", 6)) {
@@ -1585,8 +1606,10 @@ static void action_cmd(char *cmd, const char *working_dir)
 		filter_set_clear_on_keyboard_input(1);
 		filter_addstr(p, strlen(p));
 		update(1);
+	} else if (!strncmp(cmd, "^quit(", 6)) {
+		exit(0);
 	} else {
-		spawn(cmd, working_dir);
+		spawn_async(cmd, working_dir);
 		hide_or_exit();
 	}
 }
@@ -2080,10 +2103,13 @@ static void hover(void)
 static void set_focus(Window w)
 {
 	struct node *n;
+	int ret = 0;
 
 	n = get_node_from_wid(w);
 	menu.current_node->last_sel = menu.sel;
-	ui_win_activate(w);
+	ret = ui_win_activate(w);
+	if (ret < 0)
+		return;
 	geo_set_cur(ui->cur);
 	checkout_tag(n->item->tag);
 	menu.sel = n->last_sel;
@@ -2262,7 +2288,8 @@ static void run(void)
 
 				/* mouse over signal */
 				if (ch == 't') {
-					BUG_ON(!menu.sel);
+					if (!menu.sel)
+						continue;
 					del_beyond_current();
 					/* open new sub window */
 					if (!sw_close_pending && !menu_is_hidden) {
@@ -2339,7 +2366,7 @@ static void run(void)
 				 * "ButtonRelease". We want to be able to use
 				 * these to both open and close the menu.
 				 * When passing mouse events through tint2 to
-				 * the WM, we want menu to be able to repsond
+				 * the WM, we want menu to be able to respond
 				 * to "ButtonPress" without immediately dying
 				 * on "ButtonRelease".
 				 */
@@ -2413,6 +2440,7 @@ static void set_theme(void)
 	icon_set_size(config.icon_size);
 	info("set icon theme to '%s'", theme.buf);
 	icon_set_theme(theme.buf);
+	xfree(theme.buf);
 }
 
 static void quit(int signum)
@@ -2455,12 +2483,28 @@ out:
 
 static void init_locale(void)
 {
+	static bool have_alread_tried_lang_c;
+	char *lang = getenv("LANG");
+
 	if (!setlocale(LC_ALL, ""))
 		warn("setlocale(): locale not supported by C library; using 'C' locale");
-	if (!XSupportsLocale())
-		warn("XSupportsLocale(): error setting locale");
-	if (!XSetLocaleModifiers("@im=none"))
-		warn("XSetLocaleModifiers(): error setting locale");
+	if (!XSupportsLocale()) {
+		warn("XSupportsLocale(): error setting locale %s", lang);
+		goto fallback;
+	}
+	if (!XSetLocaleModifiers("@im=none")) {
+		warn("XSetLocaleModifiers(): error setting locale %s", lang);
+		goto fallback;
+	}
+	return;
+
+fallback:
+	if (have_alread_tried_lang_c)
+		return;
+	info("fallback to LANG=C");
+	setenv("LANG", "C", 1);
+	have_alread_tried_lang_c = true;
+	init_locale();
 }
 
 static void init_sigactions(void)
@@ -2484,7 +2528,7 @@ static void cleanup(void)
 	if (config.icon_size)
 		icon_cleanup();
 	widgets_cleanup();
-	watch_cleanup();
+	hooks_cleanup();
 	t2conf_atexit();
 	delete_empty_item();
 	destroy_node_tree();
@@ -2499,6 +2543,45 @@ static void keep_menu_height_between_min_and_max(void)
 	if (config.menu_height_max &&
 	    geo_get_menu_height() > config.menu_height_max)
 		geo_set_menu_height(config.menu_height_max);
+}
+
+static FILE *get_csv_source(bool arg_vsimple)
+{
+	if (args_csv_file()) {
+		struct sbuf s;
+		FILE *fp;
+
+		sbuf_init(&s);
+		sbuf_cpy(&s, args_csv_file());
+		sbuf_expand_tilde(&s);
+		fp = fopen(s.buf, "r");
+		xfree(s.buf);
+		return fp;
+	}
+	if (args_csv_cmd())
+		return popen(args_csv_cmd(), "r");
+	if (args_simple() || arg_vsimple)
+		return stdin;
+	if (config.csv_cmd && config.csv_cmd[0] != '\0')
+		return popen(config.csv_cmd, "r");
+	return stdin;
+}
+
+static void exec_startup_script(const char *filename)
+{
+	struct sbuf s;
+	struct stat sb;
+
+	if (!filename)
+		return;
+	sbuf_init(&s);
+	sbuf_addstr(&s, filename);
+	sbuf_expand_tilde(&s);
+	if (stat(s.buf, &sb))
+		goto clean;
+	spawn_command_line_sync(s.buf);
+clean:
+	xfree(s.buf);
 }
 
 int main(int argc, char *argv[])
@@ -2530,6 +2613,10 @@ int main(int argc, char *argv[])
 			 !strncmp(argv[i], "-h", 2))
 			usage();
 	}
+
+	if (!arg_vsimple)
+		exec_startup_script("~/.config/jgmenu/startup");
+
 	if (!arg_vsimple)
 		config_read_jgmenurc(arg_config_file);
 	if (!config.verbosity)
@@ -2546,7 +2633,7 @@ int main(int argc, char *argv[])
 
 	if_unity_run_hack();
 
-	watch_init();
+	hooks_init();
 	ui_init();
 	geo_init();
 	filter_init();
@@ -2580,15 +2667,7 @@ int main(int argc, char *argv[])
 		ipc_align_based_on_env_vars();
 	}
 
-	if (args_csv_file())
-		fp = fopen(args_csv_file(), "r");
-	else if (args_csv_cmd())
-		fp = popen(args_csv_cmd(), "r");
-	else if (config.csv_cmd && config.csv_cmd[0] != '\0' &&
-		 !args_simple() && !arg_vsimple)
-		fp = popen(config.csv_cmd, "r");
-	if (!fp)
-		fp = stdin;
+	fp = get_csv_source(arg_vsimple);
 	read_csv_file(fp, false);
 	if (fp && fp != stdin)
 		fclose(fp);

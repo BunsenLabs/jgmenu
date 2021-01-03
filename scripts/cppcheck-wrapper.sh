@@ -15,7 +15,7 @@ suppressions="\
 	--suppress=readdirCalled:src/icon-find.c \
 	--suppress=missingIncludeSystem \
 	--suppress=variableScope \
-	--suppress=nullPointer:src/jgmenu-obtheme.c:58 \
+	--suppress=nullPointer:src/jgmenu-obtheme.c \
 	--suppress=unusedFunction:src/hashmap.c \
 	--suppress=unusedFunction:src/hashmap.h \
 	--suppress=unusedFunction:src/list.h"
@@ -44,7 +44,6 @@ cppcheck \
 	-DVERSION=3.4 \
 	-I src/ \
 	--std=c99 \
-	--std=posix \
 	--library=/usr/share/cppcheck/cfg/gnu.cfg \
 	--quiet \
 	${enable} \

@@ -40,11 +40,6 @@ static struct dir *add_dir(void)
 static void process_key_value_pair(char *key, char *value)
 {
 	static struct dir *dir;
-	static char *name_ll, *name_ll_cc;
-
-	/* Set to "Name[<ll>]" and "Name[<ll_CC>]" */
-	if (!name_ll)
-		lang_localized_name_key(&name_ll, &name_ll_cc);
 
 	/* The keyword 'Name' starts a new directory section */
 	if (!strcmp("Name", key)) {
@@ -59,11 +54,11 @@ static void process_key_value_pair(char *key, char *value)
 	else if (!strcmp("Icon", key))
 		dir->icon = xstrdup(value);
 
-	if (!strcmp(key, name_ll_cc))
+	if (!strcmp(key, lang_name_llcc()))
 		dir->name_localized = xstrdup(value);
 	if (dir->name_localized)
 		return;
-	if (!strcmp(key, name_ll))
+	if (!strcmp(key, lang_name_ll()))
 		dir->name_localized = xstrdup(value);
 }
 
@@ -131,13 +126,13 @@ void dirs_read_schema(struct dir **vector)
 		if (!process_file(schema_filename.buf))
 			goto schema_read_success;
 	}
-	info("using built-in schema data");
 	process_builtin_schema();
 schema_read_success:
 	sbuf_expand_tilde(&schema_filename);
 	xfree(schema_filename.buf);
+	sbuf_list_free(&xdg_config_dirs);
 
 	/* NULL terminate vector *dirs */
-	(void *)add_dir();
+	add_dir();
 	*vector = dirs;
 }

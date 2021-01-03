@@ -14,6 +14,7 @@ struct config {
 	int spawn;		/* 1:execute commands  0:print to stdout */
 	int verbosity;
 	int stay_alive;
+	int persistent;
 	int hide_on_startup;
 	char *csv_cmd;
 	int tint2_look;
@@ -42,6 +43,7 @@ struct config {
 	int menu_border;
 	enum alignment menu_halign;
 	enum alignment menu_valign;
+	enum alignment menu_gradient_pos;
 
 	int sub_spacing;
 	int sub_padding_top;
@@ -65,6 +67,8 @@ struct config {
 	char *font_fallback;
 	int icon_size;		/* if set to zero, icons won't show */
 	int icon_text_spacing;
+	int icon_norm_alpha;
+	int icon_sel_alpha;
 	char *icon_theme;
 	char *icon_theme_fallback;
 
@@ -72,6 +76,7 @@ struct config {
 	int arrow_width;
 
 	double color_menu_bg[4];
+	double color_menu_bg_to[4];
 	double color_menu_border[4];
 	double color_norm_bg[4];
 	double color_norm_fg[4];
@@ -88,6 +93,7 @@ struct config {
 	int csv_single_window;
 	int csv_no_dirs;
 	char *csv_i18n;
+	int csv_no_duplicates;
 };
 
 extern struct config config;

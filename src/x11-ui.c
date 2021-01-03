@@ -80,7 +80,7 @@ void grabkeyboard(void)
 	int i;
 
 	for (i = 0; i < 50; i++) {
-		if (XGrabKeyboard(ui->dpy, DefaultRootWindow(ui->dpy), True,
+		if (XGrabKeyboard(ui->dpy, ui->root, True,
 				  GrabModeAsync, GrabModeAsync,
 				  CurrentTime) == GrabSuccess)
 			return;
@@ -102,7 +102,7 @@ void grabpointer(void)
 	 * gives (x,y) wrt root window.
 	 */
 	for (i = 0; i < 50; i++) {
-		if (XGrabPointer(ui->dpy, DefaultRootWindow(ui->dpy),
+		if (XGrabPointer(ui->dpy, ui->root,
 				 False,
 				 ButtonPressMask | ButtonReleaseMask |
 				 PointerMotionMask | FocusChangeMask |
@@ -113,6 +113,19 @@ void grabpointer(void)
 		msleep(20);
 	}
 	die("cannot grab pointer");
+}
+
+static void get_visual_info(void)
+{
+	int i, depths[] = { 32, 24, 8, 4, 2, 1, 0 };
+
+	for (i = 0; depths[i]; i++) {
+		XMatchVisualInfo(ui->dpy, ui->screen, depths[i], TrueColor,
+				 &ui->vinfo);
+		if (ui->vinfo.visual)
+			break;
+	}
+	info("color depth=%d", ui->vinfo.depth);
 }
 
 void ui_init(void)
@@ -132,9 +145,8 @@ void ui_init(void)
 		die("cannot open display");
 
 	ui->xim = XOpenIM(ui->dpy, NULL, NULL, NULL);
-	XMatchVisualInfo(ui->dpy, DefaultScreen(ui->dpy), 32, TrueColor, &ui->vinfo);
-
 	ui->screen = DefaultScreen(ui->dpy);
+	get_visual_info();
 	ui->root = RootWindow(ui->dpy, ui->screen);
 }
 
@@ -149,7 +161,7 @@ static void print_screen_info(void)
 		return;
 	info_has_been_shown = 1;
 
-	sr = XRRGetScreenResourcesCurrent(ui->dpy, DefaultRootWindow(ui->dpy));
+	sr = XRRGetScreenResourcesCurrent(ui->dpy, ui->root);
 	info("%d xrandr crt controller(s) found", sr->ncrtc);
 	for (i = 0; i < sr->ncrtc; i++) {
 		ci = XRRGetCrtcInfo(ui->dpy, sr, sr->crtcs[i]);
@@ -178,7 +190,7 @@ void ui_get_screen_res(int *x0, int *y0, int *width, int *height, int monitor)
 
 	if (config.verbosity >= 3)
 		print_screen_info();
-	sr = XRRGetScreenResourcesCurrent(ui->dpy, DefaultRootWindow(ui->dpy));
+	sr = XRRGetScreenResourcesCurrent(ui->dpy, ui->root);
 	BUG_ON(!sr);
 	n = sr->ncrtc;
 
@@ -237,10 +249,9 @@ void ui_create_window(int x, int y, int w, int h)
 {
 	ui->w[ui->cur].swa.override_redirect = True;
 	ui->w[ui->cur].swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask | ButtonPressMask;
-	ui->w[ui->cur].swa.colormap = XCreateColormap(ui->dpy, DefaultRootWindow(ui->dpy), ui->vinfo.visual, AllocNone);
+	ui->w[ui->cur].swa.colormap = XCreateColormap(ui->dpy, ui->root, ui->vinfo.visual, AllocNone);
 	ui->w[ui->cur].swa.background_pixel = 0;
 	ui->w[ui->cur].swa.border_pixel = 0;
-
 	ui->w[ui->cur].win = XCreateWindow(ui->dpy, ui->root, x, y, w, h, 0,
 					   ui->vinfo.depth, CopyFromParent,
 					   ui->vinfo.visual,
@@ -250,9 +261,7 @@ void ui_create_window(int x, int y, int w, int h)
 					   &ui->w[ui->cur].swa);
 	ui->w[ui->cur].xic = XCreateIC(ui->xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
 			    XNClientWindow, ui->w[ui->cur].win, XNFocusWindow, ui->w[ui->cur].win, NULL);
-
 	ui->w[ui->cur].gc = XCreateGC(ui->dpy, ui->w[ui->cur].win, 0, NULL);
-
 	XStoreName(ui->dpy, ui->w[ui->cur].win, "jgmenu");
 	XSetIconName(ui->dpy, ui->w[ui->cur].win, "jgmenu");
 	set_wm_class();
@@ -273,7 +282,7 @@ void ui_create_window(int x, int y, int w, int h)
 void ui_init_canvas(int max_width, int max_height)
 {
 	ui->w[ui->cur].canvas = XCreatePixmap(ui->dpy, ui->root, max_width,
-					      max_height, 32);
+					      max_height, ui->vinfo.depth);
 }
 
 void ui_init_cairo(int canvas_width, int canvas_height, const char *font)
@@ -315,16 +324,19 @@ void ui_win_add(int x, int y, int w, int h, int max_w, int max_h, const char *fo
 	XMapWindow(ui->dpy, ui->w[ui->cur].win);
 }
 
-void ui_win_activate(Window w)
+int ui_win_activate(Window w)
 {
 	int i;
 
-	for (i = 0; ui->w[i].c; i++)
-		if (w == ui->w[i].win)
-			goto out;
-	die("badness: %s", __func__);
-out:
-	ui->cur = i;
+	for (i = 0; ui->w[i].c; i++) {
+		if (w == ui->w[i].win) {
+			ui->cur = i;
+			return 0;
+		}
+	}
+
+	/* we shouldn't get here */
+	return -1;
 }
 
 int ui_has_child_window_open(Window w)
@@ -345,7 +357,8 @@ static void del_win(int win_index)
 		die("there is not a window to delete");
 	XMapWindow(ui->dpy, ui->w[win_index].win);
 	XDestroyWindow(ui->dpy, ui->w[win_index].win);
-	XDestroyIC(ui->w[win_index].xic);
+	if (ui->w[win_index].xic)
+		XDestroyIC(ui->w[win_index].xic);
 	XFreePixmap(ui->dpy, ui->w[win_index].canvas);
 	XFreeGC(ui->dpy, ui->w[win_index].gc);
 	cairo_destroy(ui->w[win_index].c);
@@ -375,6 +388,12 @@ void ui_win_del_beyond(int w)
 	ui->cur = w;
 }
 
+static void set_rgba(double *rgba)
+{
+	cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2],
+			      rgba[3]);
+}
+
 void ui_draw_rectangle_rounded_at_top(double x, double y, double w, double h,
 				      double radius, double line_width, int fill, double *rgba)
 {
@@ -386,7 +405,7 @@ void ui_draw_rectangle_rounded_at_top(double x, double y, double w, double h,
 	cairo_arc(ui->w[ui->cur].c, x, y + h, 0, 90 * deg, 180 * deg);			   /* SW */
 	cairo_arc(ui->w[ui->cur].c, x + radius, y + radius, radius, 180 * deg, 270 * deg);    /* NE */
 	cairo_close_path(ui->w[ui->cur].c);
-	cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2], rgba[3]);
+	set_rgba(rgba);
 	if (fill) {
 		cairo_set_line_width(ui->w[ui->cur].c, 0.0);
 		cairo_fill_preserve(ui->w[ui->cur].c);
@@ -413,7 +432,7 @@ void ui_draw_rectangle(double x, double y, double w, double h, double radius, do
 		cairo_arc(ui->w[ui->cur].c, x + radius, y + h - radius, radius, 90 * deg, 180 * deg);
 		cairo_arc(ui->w[ui->cur].c, x + radius, y + radius, radius, 180 * deg, 270 * deg);
 		cairo_close_path(ui->w[ui->cur].c);
-		cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2], rgba[3]);
+		set_rgba(rgba);
 		if (fill) {
 			cairo_set_line_width(ui->w[ui->cur].c, 0.0);
 			cairo_fill_preserve(ui->w[ui->cur].c);
@@ -422,7 +441,7 @@ void ui_draw_rectangle(double x, double y, double w, double h, double radius, do
 		}
 		cairo_stroke(ui->w[ui->cur].c);
 	} else {
-		cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2], rgba[3]);
+		set_rgba(rgba);
 		cairo_set_line_width(ui->w[ui->cur].c, line_width);
 		cairo_rectangle(ui->w[ui->cur].c, x, y, w, h);
 		if (fill)
@@ -432,9 +451,99 @@ void ui_draw_rectangle(double x, double y, double w, double h, double radius, do
 	}
 }
 
+void ui_draw_rectangle_gradient(double x, double y, double w, double h, double radius, double line_width, int fill, double *top_rgba, double *bot_rgba, enum alignment align) 
+{
+	cairo_pattern_t *pat1;
+	switch(align) {
+		case LEFT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case RIGHT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		case TOP:
+			pat1 = cairo_pattern_create_linear(x, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case BOTTOM:
+			pat1 = cairo_pattern_create_linear(x, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		case TOP_LEFT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case TOP_RIGHT:
+			pat1 = cairo_pattern_create_linear(x + w, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case BOTTOM_LEFT:
+			pat1 = cairo_pattern_create_linear(x + w, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		case BOTTOM_RIGHT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		default:
+			pat1 = cairo_pattern_create_linear(x, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+	}
+
+	x += line_width / 2;
+	y += line_width / 2;
+	w -= line_width;
+	h -= line_width;
+
+	cairo_set_line_width(ui->w[ui->cur].c, 0.0);
+	if (radius > 0) {
+		double deg = 0.017453292519943295; /* 2 x 3.1415927 / 360.0 */
+
+		cairo_new_sub_path(ui->w[ui->cur].c);
+		cairo_arc(ui->w[ui->cur].c, x + w - radius, y + radius, radius, -90 * deg, 0 * deg);
+		cairo_arc(ui->w[ui->cur].c, x + w - radius, y + h - radius, radius, 0 * deg, 90 * deg);
+		cairo_arc(ui->w[ui->cur].c, x + radius, y + h - radius, radius, 90 * deg, 180 * deg);
+		cairo_arc(ui->w[ui->cur].c, x + radius, y + radius, radius, 180 * deg, 270 * deg);
+		cairo_close_path(ui->w[ui->cur].c);
+		//set_rgba(test);
+		if (fill) {
+			cairo_set_source(ui->w[ui->cur].c, pat1);
+			cairo_set_line_width(ui->w[ui->cur].c, 0.0);
+			cairo_fill_preserve(ui->w[ui->cur].c);
+		} else {
+			cairo_set_line_width(ui->w[ui->cur].c, line_width);
+		}
+		cairo_stroke(ui->w[ui->cur].c);
+	} else {
+		//set_rgba(test);
+		cairo_set_line_width(ui->w[ui->cur].c, line_width);
+		cairo_rectangle(ui->w[ui->cur].c, x, y, w, h);
+		if (fill) {
+			cairo_set_source(ui->w[ui->cur].c, pat1);
+			cairo_fill(ui->w[ui->cur].c);	/* FIXME Should line width be 0 here? */
+		} else {
+			cairo_stroke(ui->w[ui->cur].c);
+		}
+	}
+
+	cairo_pattern_destroy(pat1);
+}
+
 void ui_draw_line(double x0, double y0, double x1, double y1, double line_width, double *rgba)
 {
-	cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2], rgba[3]);
+	set_rgba(rgba);
 	cairo_set_line_width(ui->w[ui->cur].c, line_width);
 	cairo_move_to(ui->w[ui->cur].c, x0, y0);
 	cairo_line_to(ui->w[ui->cur].c, x1, y1);
@@ -464,7 +573,7 @@ void ui_insert_text(char *s, int x, int y, int h, int w, double *rgba,
 	pango_layout_set_font_description(ui->w[ui->cur].pangolayout, ui->w[ui->cur].pangofont);
 	pango_layout_set_tabs(ui->w[ui->cur].pangolayout, tabs);
 	pango_layout_set_markup(ui->w[ui->cur].pangolayout, s, -1);
-	cairo_set_source_rgba(ui->w[ui->cur].c, rgba[0], rgba[1], rgba[2], rgba[3]);
+	set_rgba(rgba);
 	pango_cairo_update_layout(ui->w[ui->cur].c, ui->w[ui->cur].pangolayout);
 	pango_layout_get_pixel_size(ui->w[ui->cur].pangolayout, NULL, &height);
 	/* use (h - height) / 2 to center-align vertically */
@@ -487,7 +596,6 @@ struct point ui_get_text_size(const char *str, const char *fontdesc)
 	font = pango_font_description_from_string(fontdesc);
 	pango_layout_set_font_description(layout, font);
 	pango_layout_set_markup(layout, str, -1);
-	cairo_set_source_rgba(c, 0, 0, 0, 1.0);
 	pango_cairo_update_layout(c, layout);
 	pango_layout_get_pixel_size(layout, &point.x, &point.y);
 	cairo_surface_destroy(cs);
@@ -519,7 +627,8 @@ void ui_cleanup(void)
 	XDestroyWindow(ui->dpy, ui->w[ui->cur].win);
 	XUngrabKeyboard(ui->dpy, CurrentTime);
 	XUngrabPointer(ui->dpy, CurrentTime);
-	XDestroyIC(ui->w[0].xic);
+	if (ui->w[0].xic)
+		XDestroyIC(ui->w[0].xic);
 	XCloseIM(ui->xim);
 
 	if (ui->w[ui->cur].canvas)
@@ -536,7 +645,7 @@ void ui_cleanup(void)
 	xfree(ui);
 }
 
-void ui_insert_image(cairo_surface_t *image, double x, double y, double size)
+void ui_insert_image(cairo_surface_t *image, double x, double y, double size, double alpha)
 {
 	double w, h, max;
 
@@ -551,6 +660,6 @@ void ui_insert_image(cairo_surface_t *image, double x, double y, double size)
 		cairo_scale(ui->w[ui->cur].c, size / max, size / max);
 
 	cairo_set_source_surface(ui->w[ui->cur].c, image, 0, 0);
-	cairo_paint(ui->w[ui->cur].c);
+	cairo_paint_with_alpha(ui->w[ui->cur].c, alpha);
 	cairo_restore(ui->w[ui->cur].c);
 }

@@ -124,9 +124,10 @@ static int _getenv(int *var, const char *key)
 
 static void align_to_horizontal_panel(struct rect panel, struct rect button)
 {
+	geo_update_monitor_coords();
 	if (button.x1 >= geo_get_screen_x0() + geo_get_screen_width() ||
 	    button.x1 < geo_get_screen_x0()) {
-		warn("pointer outside IPC varable range");
+		warn("pointer outside IPC variable range");
 		return;
 	}
 	if (config.verbosity == 4)
@@ -149,9 +150,10 @@ static void align_to_horizontal_panel(struct rect panel, struct rect button)
 
 static void align_to_vertical_panel(struct rect panel, struct rect button)
 {
+	geo_update_monitor_coords();
 	if (button.y1 >= geo_get_screen_y0() + geo_get_screen_height() ||
 	    button.y1 < geo_get_screen_y0()) {
-		warn("pointer outside IPC varable range");
+		warn("pointer outside IPC variable range");
 		return;
 	}
 	if (config.verbosity == 4)
