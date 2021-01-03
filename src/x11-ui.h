@@ -55,7 +55,7 @@ void ui_init_canvas(int max_width, int max_height);
 void ui_init_cairo(int canvas_width, int canvas_height, const char *font);
 void ui_win_init(int x, int y, int w, int h, int max_w, int max_h, const char *font);
 void ui_win_add(int x, int y, int w, int h, int max_w, int max_h, const char *font);
-void ui_win_activate(Window w);
+int ui_win_activate(Window w);
 int ui_has_child_window_open(Window w);
 void ui_win_del(void);
 void ui_win_del_beyond(int w);
@@ -63,6 +63,8 @@ void ui_draw_rectangle_rounded_at_top(double x, double y, double w, double h, do
 				      double line_width, int fill, double *rgba);
 void ui_draw_rectangle(double x, double y, double w, double h, double radius, double line_width,
 		       int fill, double *rgba);
+void ui_draw_rectangle_gradient(double x, double y, double w, double h, double radius, double line_width,
+		       int fill, double *top_rgba, double *bot_rgba, enum alignment align);
 void ui_draw_line(double x0, double y0, double x1, double y1, double line_width, double *rgba);
 void ui_insert_text(char *s, int x, int y, int h, int w, double *rgba,
 		    enum alignment align);

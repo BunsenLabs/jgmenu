@@ -324,16 +324,19 @@ void ui_win_add(int x, int y, int w, int h, int max_w, int max_h, const char *fo
 	XMapWindow(ui->dpy, ui->w[ui->cur].win);
 }
 
-void ui_win_activate(Window w)
+int ui_win_activate(Window w)
 {
 	int i;
 
-	for (i = 0; ui->w[i].c; i++)
-		if (w == ui->w[i].win)
-			goto out;
-	die("badness: %s", __func__);
-out:
-	ui->cur = i;
+	for (i = 0; ui->w[i].c; i++) {
+		if (w == ui->w[i].win) {
+			ui->cur = i;
+			return 0;
+		}
+	}
+
+	/* we shouldn't get here */
+	return -1;
 }
 
 int ui_has_child_window_open(Window w)
@@ -354,7 +357,8 @@ static void del_win(int win_index)
 		die("there is not a window to delete");
 	XMapWindow(ui->dpy, ui->w[win_index].win);
 	XDestroyWindow(ui->dpy, ui->w[win_index].win);
-	XDestroyIC(ui->w[win_index].xic);
+	if (ui->w[win_index].xic)
+		XDestroyIC(ui->w[win_index].xic);
 	XFreePixmap(ui->dpy, ui->w[win_index].canvas);
 	XFreeGC(ui->dpy, ui->w[win_index].gc);
 	cairo_destroy(ui->w[win_index].c);
@@ -447,6 +451,96 @@ void ui_draw_rectangle(double x, double y, double w, double h, double radius, do
 	}
 }
 
+void ui_draw_rectangle_gradient(double x, double y, double w, double h, double radius, double line_width, int fill, double *top_rgba, double *bot_rgba, enum alignment align) 
+{
+	cairo_pattern_t *pat1;
+	switch(align) {
+		case LEFT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case RIGHT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		case TOP:
+			pat1 = cairo_pattern_create_linear(x, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case BOTTOM:
+			pat1 = cairo_pattern_create_linear(x, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		case TOP_LEFT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case TOP_RIGHT:
+			pat1 = cairo_pattern_create_linear(x + w, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+		case BOTTOM_LEFT:
+			pat1 = cairo_pattern_create_linear(x + w, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		case BOTTOM_RIGHT:
+			pat1 = cairo_pattern_create_linear(x, y, x + w, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			break;
+		default:
+			pat1 = cairo_pattern_create_linear(x, y, x, y + h);
+			cairo_pattern_add_color_stop_rgba(pat1, 0, top_rgba[0], top_rgba[1], top_rgba[2], top_rgba[3]);
+			cairo_pattern_add_color_stop_rgba(pat1, 50, bot_rgba[0], bot_rgba[1], bot_rgba[2], bot_rgba[3]);
+			break;
+	}
+
+	x += line_width / 2;
+	y += line_width / 2;
+	w -= line_width;
+	h -= line_width;
+
+	cairo_set_line_width(ui->w[ui->cur].c, 0.0);
+	if (radius > 0) {
+		double deg = 0.017453292519943295; /* 2 x 3.1415927 / 360.0 */
+
+		cairo_new_sub_path(ui->w[ui->cur].c);
+		cairo_arc(ui->w[ui->cur].c, x + w - radius, y + radius, radius, -90 * deg, 0 * deg);
+		cairo_arc(ui->w[ui->cur].c, x + w - radius, y + h - radius, radius, 0 * deg, 90 * deg);
+		cairo_arc(ui->w[ui->cur].c, x + radius, y + h - radius, radius, 90 * deg, 180 * deg);
+		cairo_arc(ui->w[ui->cur].c, x + radius, y + radius, radius, 180 * deg, 270 * deg);
+		cairo_close_path(ui->w[ui->cur].c);
+		//set_rgba(test);
+		if (fill) {
+			cairo_set_source(ui->w[ui->cur].c, pat1);
+			cairo_set_line_width(ui->w[ui->cur].c, 0.0);
+			cairo_fill_preserve(ui->w[ui->cur].c);
+		} else {
+			cairo_set_line_width(ui->w[ui->cur].c, line_width);
+		}
+		cairo_stroke(ui->w[ui->cur].c);
+	} else {
+		//set_rgba(test);
+		cairo_set_line_width(ui->w[ui->cur].c, line_width);
+		cairo_rectangle(ui->w[ui->cur].c, x, y, w, h);
+		if (fill) {
+			cairo_set_source(ui->w[ui->cur].c, pat1);
+			cairo_fill(ui->w[ui->cur].c);	/* FIXME Should line width be 0 here? */
+		} else {
+			cairo_stroke(ui->w[ui->cur].c);
+		}
+	}
+
+	cairo_pattern_destroy(pat1);
+}
+
 void ui_draw_line(double x0, double y0, double x1, double y1, double line_width, double *rgba)
 {
 	set_rgba(rgba);
@@ -533,7 +627,8 @@ void ui_cleanup(void)
 	XDestroyWindow(ui->dpy, ui->w[ui->cur].win);
 	XUngrabKeyboard(ui->dpy, CurrentTime);
 	XUngrabPointer(ui->dpy, CurrentTime);
-	XDestroyIC(ui->w[0].xic);
+	if (ui->w[0].xic)
+		XDestroyIC(ui->w[0].xic);
 	XCloseIM(ui->xim);
 
 	if (ui->w[ui->cur].canvas)

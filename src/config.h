@@ -14,6 +14,7 @@ struct config {
 	int spawn;		/* 1:execute commands  0:print to stdout */
 	int verbosity;
 	int stay_alive;
+	int persistent;
 	int hide_on_startup;
 	char *csv_cmd;
 	int tint2_look;
@@ -42,6 +43,7 @@ struct config {
 	int menu_border;
 	enum alignment menu_halign;
 	enum alignment menu_valign;
+	enum alignment menu_gradient_pos;
 
 	int sub_spacing;
 	int sub_padding_top;
@@ -74,6 +76,7 @@ struct config {
 	int arrow_width;
 
 	double color_menu_bg[4];
+	double color_menu_bg_to[4];
 	double color_menu_border[4];
 	double color_norm_bg[4];
 	double color_norm_fg[4];

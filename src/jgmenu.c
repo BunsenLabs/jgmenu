@@ -124,7 +124,7 @@ static const char jgmenu_usage[] =
 "    --vsimple             same as --simple, but also disables icons and\n"
 "                          ignores jgmenurc\n"
 "    --csv-file=<file>     specify menu file (in jgmenu flavoured CSV format)\n"
-"    --csv-cmd=<command>   specify command to producue menu data\n";
+"    --csv-cmd=<command>   specify command to produce menu data\n";
 
 static void checkout_rootnode(void);
 static void pipemenu_del_all(void);
@@ -646,8 +646,14 @@ static void draw_menu(void)
 
 	/* Draw background */
 	ui_clear_canvas();
-	ui_draw_rectangle(0, 0, w, geo_get_menu_height(), config.menu_radius,
-			  config.menu_border, 1, config.color_menu_bg);
+	if (config.menu_gradient_pos != ALIGNMENT_NONE) {
+		ui_draw_rectangle_gradient(0, 0, w, geo_get_menu_height(), config.menu_radius,
+				config.menu_border, 1, config.color_menu_bg, config.color_menu_bg_to, config.menu_gradient_pos);
+	} else {
+		ui_draw_rectangle(0, 0, w, geo_get_menu_height(), config.menu_radius,
+				config.menu_border, 1, config.color_menu_bg);
+	}
+
 
 	/* Draw menu border */
 	if (config.menu_border)
@@ -1516,6 +1522,8 @@ static void hide_menu(void)
 
 static void hide_or_exit(void)
 {
+	if (config.persistent > 0)
+		return;
 	if (config.stay_alive)
 		hide_menu();
 	else
@@ -1598,6 +1606,8 @@ static void action_cmd(char *cmd, const char *working_dir)
 		filter_set_clear_on_keyboard_input(1);
 		filter_addstr(p, strlen(p));
 		update(1);
+	} else if (!strncmp(cmd, "^quit(", 6)) {
+		exit(0);
 	} else {
 		spawn_async(cmd, working_dir);
 		hide_or_exit();
@@ -2093,10 +2103,13 @@ static void hover(void)
 static void set_focus(Window w)
 {
 	struct node *n;
+	int ret = 0;
 
 	n = get_node_from_wid(w);
 	menu.current_node->last_sel = menu.sel;
-	ui_win_activate(w);
+	ret = ui_win_activate(w);
+	if (ret < 0)
+		return;
 	geo_set_cur(ui->cur);
 	checkout_tag(n->item->tag);
 	menu.sel = n->last_sel;
@@ -2275,7 +2288,8 @@ static void run(void)
 
 				/* mouse over signal */
 				if (ch == 't') {
-					BUG_ON(!menu.sel);
+					if (!menu.sel)
+						continue;
 					del_beyond_current();
 					/* open new sub window */
 					if (!sw_close_pending && !menu_is_hidden) {
@@ -2352,7 +2366,7 @@ static void run(void)
 				 * "ButtonRelease". We want to be able to use
 				 * these to both open and close the menu.
 				 * When passing mouse events through tint2 to
-				 * the WM, we want menu to be able to repsond
+				 * the WM, we want menu to be able to respond
 				 * to "ButtonPress" without immediately dying
 				 * on "ButtonRelease".
 				 */
@@ -2469,12 +2483,28 @@ out:
 
 static void init_locale(void)
 {
+	static bool have_alread_tried_lang_c;
+	char *lang = getenv("LANG");
+
 	if (!setlocale(LC_ALL, ""))
 		warn("setlocale(): locale not supported by C library; using 'C' locale");
-	if (!XSupportsLocale())
-		warn("XSupportsLocale(): error setting locale");
-	if (!XSetLocaleModifiers("@im=none"))
-		warn("XSetLocaleModifiers(): error setting locale");
+	if (!XSupportsLocale()) {
+		warn("XSupportsLocale(): error setting locale %s", lang);
+		goto fallback;
+	}
+	if (!XSetLocaleModifiers("@im=none")) {
+		warn("XSetLocaleModifiers(): error setting locale %s", lang);
+		goto fallback;
+	}
+	return;
+
+fallback:
+	if (have_alread_tried_lang_c)
+		return;
+	info("fallback to LANG=C");
+	setenv("LANG", "C", 1);
+	have_alread_tried_lang_c = true;
+	init_locale();
 }
 
 static void init_sigactions(void)
